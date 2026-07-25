@@ -1,12 +1,12 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHead } from "./SectionHead";
-import { getHomeHits } from "@/data/home";
+import { getHomeHits } from "@/lib/repo";
 import { benefitPercent } from "@/lib/format";
 
 /* HitsRow — top models, reusing the exact catalog ProductCard (same labels,
-   badges, stock states). Names come from the Catalog message catalog by handle. */
+   badges, stock states). Names arrive already localized from the repository. */
 
 function labelFor(badge: string | undefined, pct: number, hit: string, isNew: string) {
   if (badge === "hit") return { kind: "hit" as const, text: hit };
@@ -22,8 +22,7 @@ export async function HitsRow() {
   const tPrice = await getTranslations("Price");
   const tProduct = await getTranslations("Product");
 
-  const names = tCat.raw("names") as Record<string, string>;
-  const hits = getHomeHits(8);
+  const hits = await getHomeHits(await getLocale(), 8);
   const labelHit = tCat("labelHit");
   const labelNew = tCat("labelNew");
 
@@ -44,7 +43,7 @@ export async function HitsRow() {
           return (
             <Reveal key={it.handle} delay={Math.min(i, 7) * 40} className="h-full">
               <ProductCard
-                name={names[it.handle] ?? it.handle}
+                name={it.name}
                 href={`/products/${it.handle}`}
                 handle={it.handle}
                 image={it.image}

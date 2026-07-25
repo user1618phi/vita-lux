@@ -172,12 +172,12 @@ function matchesBucket(price: number, bucket: PriceBucket): boolean {
   return price >= bucket.min && (bucket.max === null || price < bucket.max);
 }
 
-function applyFilters(
-  items: CatalogItem[],
+function applyFilters<T extends CatalogItem>(
+  items: T[],
   f: ActiveFilters,
   config: CategoryFilterConfig,
   opts: { ignore?: keyof ActiveFilters } = {},
-): CatalogItem[] {
+): T[] {
   const { ignore } = opts;
   const bucket = f.price ? config.price.find((b) => b.id === f.price) : undefined;
   return items.filter((it) => {
@@ -193,11 +193,11 @@ function applyFilters(
 
 const BADGE_RANK: Record<string, number> = { hit: 0, new: 1, sale: 2 };
 
-export function filterAndSort(
-  items: CatalogItem[],
+export function filterAndSort<T extends CatalogItem>(
+  items: T[],
   f: ActiveFilters,
   config: CategoryFilterConfig,
-): CatalogItem[] {
+): T[] {
   const result = applyFilters(items, f, config);
   const sorted = [...result];
   switch (f.sort) {
@@ -226,8 +226,8 @@ export function filterAndSort(
 /** Facet count: how many items match if this option were added to the current
     selection — but the option's own group is ignored so counts don't collapse
     to zero as you tick boxes within one group. */
-export function facetCount(
-  items: CatalogItem[],
+export function facetCount<T extends CatalogItem>(
+  items: T[],
   f: ActiveFilters,
   config: CategoryFilterConfig,
   group: "collection" | "outlet" | "mount" | "finish",
