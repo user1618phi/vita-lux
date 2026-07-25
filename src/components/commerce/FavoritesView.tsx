@@ -8,7 +8,6 @@ import { ProductCard } from "@/components/ui/ProductCard";
 import { Reveal } from "@/components/ui/Reveal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useCart } from "@/context/CartContext";
-import { catalogItems } from "@/data/catalog";
 import { benefitPercent } from "@/lib/format";
 
 function labelFor(badge: string | undefined, pct: number, hit: string, isNew: string) {
@@ -24,10 +23,10 @@ export function FavoritesView() {
   const tStock = useTranslations("Stock");
   const tPrice = useTranslations("Price");
   const tProduct = useTranslations("Product");
-  const { favorites, hydrated } = useCart();
+  // Resolved server-side by the cart context — the browser never joins against
+  // the catalog itself.
+  const { favoriteItems: items, hydrated } = useCart();
 
-  const names = tCat.raw("names") as Record<string, string>;
-  const items = catalogItems.filter((it) => favorites.includes(it.handle));
   const baseLabels = {
     addToCart: tProduct("addToCart"),
     installmentFrom: tPrice("installmentFrom"),
@@ -66,7 +65,7 @@ export function FavoritesView() {
           return (
             <Reveal key={it.handle} delay={Math.min(i, 7) * 40} className="h-full">
               <ProductCard
-                name={names[it.handle] ?? it.handle}
+                name={it.name}
                 href={`/products/${it.handle}`}
                 handle={it.handle}
                 image={it.image}

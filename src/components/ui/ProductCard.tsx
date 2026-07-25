@@ -11,6 +11,7 @@ import { PriceTag } from "./PriceTag";
 import { InstallmentLine } from "./InstallmentLine";
 import { Button } from "./Button";
 import { useCart } from "@/context/CartContext";
+import type { LineSnapshot } from "@/app/actions/catalog";
 import { track } from "@/lib/analytics";
 import { QuickView } from "@/components/commerce/QuickView";
 
@@ -59,6 +60,23 @@ export function ProductCard({
   const [quickOpen, setQuickOpen] = useState(false);
   const fav = isFavorite(handle);
   const soldOut = status === "out";
+
+  /* The card already has everything the cart needs to render, so hand it over
+     on add — the line paints with a real name and price immediately, and the
+     server revalidation that follows only confirms it. */
+  const snapshot: LineSnapshot = {
+    handle,
+    sku: handle.toUpperCase(),
+    name,
+    price,
+    oldPrice,
+    image,
+    collection: "",
+    stock: status,
+    priceOnRequest: false,
+    badge: productLabel?.kind,
+    installmentMonths: months,
+  };
   return (
     <>
     <div
@@ -125,7 +143,7 @@ export function ProductCard({
           aria-pressed={fav}
           onClick={(e) => {
             e.preventDefault();
-            toggleFavorite(handle);
+            toggleFavorite(handle, snapshot);
           }}
           style={{
             position: "absolute",
@@ -196,7 +214,7 @@ export function ProductCard({
             disabled={soldOut}
             iconLeft={!soldOut ? <Icon name="shopping-bag" size={20} /> : null}
             onClick={() => {
-              add(handle);
+              add(handle, 1, snapshot);
               track("add_to_cart", { sku: handle, quantity: 1 });
             }}
           >

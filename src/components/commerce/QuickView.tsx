@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { resolveHandles, type LineSnapshot } from "@/app/actions/catalog";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -10,7 +11,6 @@ import { PriceTag } from "@/components/ui/PriceTag";
 import { StockStatus } from "@/components/ui/StockStatus";
 import { PhotoGallery } from "@/components/product/PhotoGallery";
 import { useCart } from "@/context/CartContext";
-import { getCatalogItem } from "@/data/catalog";
 import { benefitPercent } from "@/lib/format";
 import { track } from "@/lib/analytics";
 
@@ -28,6 +28,19 @@ export function QuickView({ handle, onClose }: { handle: string; onClose: () => 
   const tpg = useTranslations("ProductGeneric");
   const { add, toggleFavorite, isFavorite } = useCart();
   const [qty, setQty] = useState(1);
+  const [item, setItem] = useState<LineSnapshot | null>(null);
+
+  // Resolved server-side: the modal opens immediately and fills in when the
+  // catalog answers, rather than shipping the catalog to the browser.
+  useEffect(() => {
+    let cancelled = false;
+    resolveHandles([handle]).then(({ found }) => {
+      if (!cancelled) setItem(found[0] ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [handle]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -40,17 +53,14 @@ export function QuickView({ handle, onClose }: { handle: string; onClose: () => 
     };
   }, [onClose]);
 
-  const item = getCatalogItem(handle);
-  if (!item) return null;
-
-  const names = tCat.raw("names") as Record<string, string>;
-  const name = names[handle] ?? handle;
-  const collectionName = tFilters(`collections.${item.collection}`);
-  const pct = item.oldPrice ? benefitPercent(item.oldPrice, item.price) : 0;
+  const name = item?.name ?? "";
+  const collectionName = item?.collection ? tFilters(`collections.${item.collection}`) : "";
+  const pct = item?.oldPrice ? benefitPercent(item.oldPrice, item.price) : 0;
   const benefitText = pct > 0 ? tPrice("benefit", { pct }) : undefined;
-  const gallery = item.gallery?.length ? item.gallery : item.image ? [item.image] : [];
+  const gallery = item?.gallery?.length ? item.gallery : item?.image ? [item.image] : [];
   const fav = isFavorite(handle);
-  const soldOut = item.stock === "out";
+  // Sold out, or priced on request — neither can go into the cart.
+  const soldOut = item?.stock === "out" || item?.priceOnRequest === true;
 
   return createPortal(
     <div
@@ -98,13 +108,28 @@ export function QuickView({ handle, onClose }: { handle: string; onClose: () => 
             </div>
             <h2 className="mt-1.5 mb-0 font-display text-[22px] lg:text-[26px] leading-[1.15] text-ink">{name}</h2>
 
-            <div className="mt-2.5">
-              <StockStatus status={item.stock} label={tStock(item.stock)} size="sm" />
-            </div>
+            {item ? (
+              <>
+                <div className="mt-2.5">
+                  <StockStatus status={item.stock} label={tStock(item.stock)} size="sm" />
+                </div>
 
-            <div className="mt-4">
-              <PriceTag price={item.price} oldPrice={item.oldPrice} size="md" benefitText={benefitText} />
-            </div>
+                <div className="mt-4">
+                  {item.priceOnRequest ? (
+                    <span className="font-sans text-[18px] text-ink">{tProduct("priceOnRequest")}</span>
+                  ) : (
+                    <PriceTag price={item.price} oldPrice={item.oldPrice} size="md" benefitText={benefitText} />
+                  )}
+                </div>
+              </>
+            ) : (
+              // Skeleton while the server resolves the handle — keeps the modal
+              // from jumping when the data lands.
+              <div className="mt-2.5 flex flex-col gap-3" aria-hidden="true">
+                <div className="h-4 w-24 rounded-sm" style={{ background: "var(--surface-control)" }} />
+                <div className="h-7 w-40 rounded-sm" style={{ background: "var(--surface-control)" }} />
+              </div>
+            )}
 
             <div className="mt-5 flex items-center gap-2.5">
               <div className="flex items-center gap-1 h-11 px-1.5" style={{ border: "1px solid var(--border-control)", borderRadius: "var(--radius-md)" }}>
@@ -124,7 +149,8 @@ export function QuickView({ handle, onClose }: { handle: string; onClose: () => 
                   disabled={soldOut}
                   iconLeft={<Icon name="shopping-bag" size={20} />}
                   onClick={() => {
-                    add(handle, qty);
+                    if (!item) return;
+                    add(handle, qty, item);
                     track("add_to_cart", { sku: handle, quantity: qty });
                   }}
                 >
@@ -133,7 +159,7 @@ export function QuickView({ handle, onClose }: { handle: string; onClose: () => 
               </div>
               <button
                 type="button"
-                onClick={() => toggleFavorite(handle)}
+                onClick={() => toggleFavorite(handle, item ?? undefined)}
                 aria-label={fav ? tProduct("favoriteRemove") : tProduct("favoriteAdd")}
                 aria-pressed={fav}
                 className="grid place-items-center rounded-md"
