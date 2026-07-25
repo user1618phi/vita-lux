@@ -17,7 +17,7 @@ import { MobileFilterBar } from "@/components/catalog/MobileFilterBar";
 import { SortSelect } from "@/components/catalog/SortSelect";
 import { CatalogAnalytics } from "@/components/catalog/CatalogAnalytics";
 
-import { categoryFilters, getCategoryConfig, getCategoryItems } from "@/data/catalog";
+import { getFilterConfig, listCategories, listCategoryItems } from "@/lib/repo";
 import {
   activeFilterCount,
   clearFiltersHref,
@@ -29,8 +29,16 @@ import {
 } from "@/lib/catalog";
 import { benefitPercent } from "@/lib/format";
 
-export function generateStaticParams() {
-  return Object.keys(categoryFilters).map((category) => ({ category }));
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  try {
+    const categories = await listCategories();
+    return categories.map(({ slug }) => ({ category: slug }));
+  } catch {
+    // No catalog source reachable at build time — render these routes on demand.
+    return [];
+  }
 }
 
 const SORT_KEYS: SortKey[] = ["popular", "price-asc", "price-desc", "new"];
@@ -45,10 +53,10 @@ export default async function CategoryPage({
   const { locale, category } = await params;
   setRequestLocale(locale);
 
-  const config = getCategoryConfig(category);
+  const config = await getFilterConfig(category);
   if (!config) notFound();
 
-  const items = getCategoryItems(category);
+  const items = await listCategoryItems(category, locale);
   const sp = await searchParams;
   const filters = parseFilters(sp);
   const visible = filterAndSort(items, filters, config);
@@ -58,7 +66,6 @@ export default async function CategoryPage({
   const tStock = await getTranslations("Stock");
   const tPrice = await getTranslations("Price");
 
-  const names = t.raw("names") as Record<string, string>;
   const title = tCat(`${category}.title`);
   const description = tCat(`${category}.description`);
   const crumbCategory = tCat(`${category}.breadcrumb`);
@@ -172,7 +179,7 @@ export default async function CategoryPage({
                   return (
                     <Reveal key={it.handle} delay={Math.min(i, 7) * 40} className="h-full">
                       <ProductCard
-                        name={names[it.handle] ?? it.handle}
+                        name={it.name}
                         href={`/products/${it.handle}`}
                         handle={it.handle}
                         image={it.image}

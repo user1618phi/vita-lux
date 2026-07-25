@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { SiteHeader } from "@/components/navigation/SiteHeader";
 import { SiteFooter } from "@/components/navigation/SiteFooter";
@@ -15,9 +15,8 @@ import { AddToCartButton } from "@/components/product/AddToCartButton";
 import { KaspiAction, WhatsAppAction } from "@/components/product/ChannelActions";
 import { MobileStickyBar } from "@/components/product/MobileStickyBar";
 
-import { getCategoryItems } from "@/data/catalog";
 import { HOME_PHONE } from "@/data/home";
-import type { CatalogItem } from "@/lib/catalog";
+import { listCategoryItems, type CatalogEntry } from "@/lib/repo";
 import { benefitPercent, formatTenge, installmentPerMonth } from "@/lib/format";
 
 type Trust = { title: string; text: string };
@@ -31,7 +30,8 @@ const TRUST_ICONS: IconName[] = ["shield-check", "package", "home"];
    price, Kaspi installment, stock, add-to-cart + WhatsApp, spec list from
    structured fields). Fully ru/kk. Monobrand — бренд всегда Vita Lux. */
 
-export async function GenericProduct({ item }: { item: CatalogItem }) {
+export async function GenericProduct({ item }: { item: CatalogEntry }) {
+  const locale = await getLocale();
   const t = await getTranslations("Product");
   const tpg = await getTranslations("ProductGeneric");
   const tCat = await getTranslations("Catalog");
@@ -40,8 +40,7 @@ export async function GenericProduct({ item }: { item: CatalogItem }) {
   const tStock = await getTranslations("Stock");
   const tPrice = await getTranslations("Price");
 
-  const names = tCat.raw("names") as Record<string, string>;
-  const name = names[item.handle] ?? item.handle;
+  const name = item.name;
   const collectionName = tFilters(`collections.${item.collection}`);
   const finishName = tFilters(`finishes.${item.finish}`);
   const materialName = item.material ? tFilters(`materials.${item.material}`) : undefined;
@@ -82,7 +81,7 @@ export async function GenericProduct({ item }: { item: CatalogItem }) {
     favoriteRemove: t("favoriteRemove"),
   };
 
-  const related = getCategoryItems(item.category)
+  const related = (await listCategoryItems(item.category, locale))
     .filter((r) => r.handle !== item.handle)
     .slice(0, 4);
 
@@ -189,7 +188,7 @@ export async function GenericProduct({ item }: { item: CatalogItem }) {
                 return (
                   <div key={r.handle} className="flex-none w-[220px] lg:w-auto">
                     <ProductCard
-                      name={names[r.handle] ?? r.handle}
+                      name={r.name}
                       href={`/products/${r.handle}`}
                       handle={r.handle}
                       image={r.image}

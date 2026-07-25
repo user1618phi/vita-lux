@@ -22,7 +22,7 @@ import { MobileStickyBar } from "@/components/product/MobileStickyBar";
 import { MountingScheme } from "@/components/product/MountingScheme";
 
 import { getProduct } from "@/data/products";
-import { getCatalogItem, catalogItems } from "@/data/catalog";
+import { getItem, listHandles } from "@/lib/repo";
 import { GenericProduct } from "@/components/product/GenericProduct";
 import { benefitPercent, formatTenge, groupDigits, installmentPerMonth } from "@/lib/format";
 
@@ -33,8 +33,15 @@ type Row = { label: string; value: string };
 const CARD = "bg-glaze border-[0.5px] border-line rounded-lg";
 const H2 = "m-0 font-display font-normal text-ink text-[20px] lg:text-[30px]";
 
-export function generateStaticParams() {
-  return catalogItems.map((it) => ({ handle: it.handle }));
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  try {
+    return (await listHandles()).map((handle) => ({ handle }));
+  } catch {
+    // No catalog source reachable at build time — render these routes on demand.
+    return [];
+  }
 }
 
 export default async function ProductPage({
@@ -45,7 +52,7 @@ export default async function ProductPage({
   const { locale, handle } = await params;
   setRequestLocale(locale);
 
-  const item = getCatalogItem(handle);
+  const item = await getItem(handle, locale);
   if (!item) notFound();
 
   // Only aura-540 has the fully bespoke rich page; every other catalog item
