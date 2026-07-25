@@ -1,0 +1,205 @@
+/* Vita Lux — global styles.
+   Design tokens ported from the Vita Lux Design System (colors, typography,
+   spacing, layout, motion). Components use ONLY semantic tokens — never raw
+   primitives. Two weights only (400/500). No shadows except the brass focus
+   ring. No gradients. Page background is Porcelain, never pure #FFF. */
+
+/* Webfonts.
+   - Kazakh (default): Golos Text everywhere — it ships the full Kazakh glyph set
+     ә ө ұ ү қ ң ғ һ і (Playfair lacks those, so kk must not use it).
+   - Russian: matches the Figma macket — Playfair Display (headings) + Inter (body).
+     Applied per-locale via html[lang="ru"] below. */
+@import url("https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap");
+@import "tailwindcss";
+
+/* ============ Tailwind theme — semantic utilities ============
+   Generates bg, text, border, font and rounded utilities from the DS tokens. */
+@theme {
+  /* Warm palette (aligned to the Vita Lux macket: bronze accent, beige, warm
+     whites/darks). Contrast still holds WCAG per the brief. */
+  --color-porcelain: #fbfaf7; /* page background — near-white, never pure white */
+  --color-glaze: #f3ede3; /* raised cards & surfaces — warm (figure over the white page) */
+  --color-beige: #eaddca; /* deeper warm accent surface — promo / CTA plaques */
+  --color-white: #ffffff; /* true white — header/tab-bar surfaces & inputs */
+  --color-basalt: #23201c; /* dark editorial blocks: footer, hero, tiles */
+  --color-ink: #1a1917; /* primary text & primary buttons (warm near-black) */
+  --color-slate: #6a655d; /* secondary text (warm) */
+  --color-brass: #a97c50; /* single accent — FILLS/ICONS/RING only, never text */
+  --color-brass-text: #83602f; /* brass TEXT on light (passes 4.5:1) */
+  --color-brass-text-dark: #c8a077; /* brass TEXT on dark */
+  --color-water: #14494b; /* info, sparingly */
+  --color-success: #1e6b4a; /* in stock */
+  --color-danger: #b3341f; /* errors, out of stock */
+  --color-line: #e8e1d6; /* hairline borders / dividers (warm) */
+  --color-border-strong: #d9d1c3; /* control borders (warm) */
+  --color-field: #efe9df; /* input fill (warm) */
+  --color-kaspi: #f14635; /* Kaspi red — only on Kaspi buttons */
+  --color-whatsapp: #25d366; /* WhatsApp green — only on WhatsApp buttons */
+
+  /* Defaults = Golos Text (Kazakh-safe). Russian overrides to Playfair + Inter
+     per the macket via html[lang="ru"] below. */
+  --font-display: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --radius-sm: 4px; /* chips, checkboxes */
+  --radius-md: 8px; /* buttons & inputs — never a pill */
+  --radius-lg: 12px; /* cards & images — max radius */
+}
+
+/* ============ Design token aliases ============
+   Exact var names used by the source design (inline styles, SVG fills, scrim).
+   Kept so ported markup reads 1:1 with the design document. */
+:root {
+  --porcelain: var(--color-porcelain);
+  --glaze: var(--color-glaze);
+  --beige: var(--color-beige);
+  --white: var(--color-white);
+  --basalt: var(--color-basalt);
+  --ink: var(--color-ink);
+  --slate: var(--color-slate);
+  --brass: var(--color-brass);
+  --water: var(--color-water);
+  --success: var(--color-success);
+  --danger: var(--color-danger);
+  --line: var(--color-line);
+  --border-strong: var(--color-border-strong);
+  --field: var(--color-field);
+  --kaspi-red: var(--color-kaspi);
+  --whatsapp-green: var(--color-whatsapp);
+
+  /* Semantic text */
+  --text-primary: var(--color-ink);
+  --text-secondary: var(--color-slate);
+  --text-accent: var(--color-brass-text); /* brass text on light */
+  --text-accent-on-dark: var(--color-brass-text-dark);
+  --text-on-dark: var(--color-porcelain);
+  --text-on-dark-muted: rgba(237, 241, 240, 0.62);
+
+  /* Surfaces / borders */
+  --surface-page: var(--color-porcelain);
+  --surface-card: var(--color-glaze);
+  --surface-warm: var(--color-beige);
+  --surface-inverse: var(--color-basalt);
+  --surface-control: var(--color-field);
+  --border: var(--color-line);
+  --border-control: var(--color-border-strong);
+  --focus-ring: var(--color-brass);
+
+  /* States */
+  --state-success: var(--color-success);
+  --state-danger: var(--color-danger);
+
+  /* Actions */
+  --action-primary-bg: var(--color-ink);
+  --action-primary-text: var(--color-glaze);
+  --action-primary-hover: #2d2823;
+  --action-primary-active: #000000;
+  --action-secondary-bg: var(--color-glaze);
+  --action-secondary-text: var(--color-ink);
+  --action-secondary-hover: var(--color-porcelain);
+  --action-secondary-active: #ece3d5;
+
+  /* Photo scrim — solid fill, never a gradient */
+  --scrim: rgba(26, 25, 23, 0.55);
+
+  /* Radii (alias to Tailwind theme values) */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Type scale */
+  --text-display-l: 40px;
+  --text-display-m: 30px;
+  --text-title: 22px;
+  --text-body-l: 18px;
+  --text-body: 16px;
+  --text-body-s: 14px;
+  --text-caption: 13px;
+  --text-micro: 11px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --tracking-label: 0.06em;
+
+  /* Layout */
+  --container-max: 1280px;
+  --gutter: 16px;
+
+  /* Motion */
+  --transition: 180ms ease-out;
+}
+
+@media (min-width: 768px) {
+  :root { --gutter: 24px; }
+}
+@media (min-width: 1440px) {
+  :root { --gutter: 32px; }
+}
+
+/* ============ Base document ============ */
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-weight: var(--weight-regular);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--surface-page);
+}
+
+a { color: var(--text-accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Display headings render at medium weight for presence (Golos 400 reads light at
+   large sizes). Unlayered so it wins over the `font-normal` utility. */
+h1, h2, h3 { font-weight: var(--weight-medium); }
+
+/* Russian matches the Figma macket: Playfair Display (headings) + Inter (body),
+   headings at weight 600. Kazakh keeps Golos everywhere — Playfair lacks its
+   glyphs (ә ө ү қ ң ғ һ). Locale set on <html lang>. */
+html[lang="ru"] {
+  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+html[lang="ru"] h1,
+html[lang="ru"] h2,
+html[lang="ru"] h3 {
+  font-weight: 600;
+}
+
+/* Utility roles */
+.vl-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 0;
+}
+
+/* Hide scrollbars on horizontal snap rails (mobile gallery / carousels) */
+.vl-noscroll { scrollbar-width: none; }
+.vl-noscroll::-webkit-scrollbar { width: 0; height: 0; }
+
+/* The only "shadow" in the system: the brass focus ring. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@keyframes vl-spin { to { transform: rotate(360deg); } }
+@keyframes vl-sheetup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes vl-scalein { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes vl-fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes vl-rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
