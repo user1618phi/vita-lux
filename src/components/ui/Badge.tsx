@@ -5,7 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 const V = {
   neutral: { bg: "var(--porcelain)", color: "var(--text-primary)", border: "var(--border)" },
-  brass: { bg: "rgba(168,123,65,0.12)", color: "#8A6231", border: "rgba(168,123,65,0.28)" },
+  brass: { bg: "rgba(168,123,65,0.12)", color: "var(--brass-text)", border: "rgba(168,123,65,0.28)" },
   success: { bg: "rgba(30,107,74,0.10)", color: "var(--state-success)", border: "rgba(30,107,74,0.25)" },
   danger: { bg: "rgba(179,38,30,0.08)", color: "var(--state-danger)", border: "rgba(179,38,30,0.22)" },
   info: { bg: "rgba(20,73,75,0.08)", color: "var(--water)", border: "rgba(20,73,75,0.20)" },

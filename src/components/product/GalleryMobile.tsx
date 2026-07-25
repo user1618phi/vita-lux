@@ -47,7 +47,7 @@ export function GalleryMobile({ views, dimLabel, saleLabel }: GalleryMobileProps
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 12,
-                color: "#C6D0CD",
+                color: "var(--border-strong)",
               }}
             >
               {i === 0 ? (
@@ -56,7 +56,7 @@ export function GalleryMobile({ views, dimLabel, saleLabel }: GalleryMobileProps
                 </div>
               ) : null}
               <Icon name="package" size={80} strokeWidth={1} />
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "#9FADAA" }}>{label}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--slate)" }}>{label}</span>
               <div style={{ position: "absolute", left: "14%", right: "14%", bottom: 24 }}>
                 <DimensionLine label={dimLabel} labelBg="var(--porcelain)" />
               </div>

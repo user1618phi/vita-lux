@@ -22,7 +22,7 @@ import { MobileStickyBar } from "@/components/product/MobileStickyBar";
 import { MountingScheme } from "@/components/product/MountingScheme";
 
 import { getProduct } from "@/data/products";
-import { getItem, listHandles } from "@/lib/repo";
+import { getItem, listCategoryItems, listHandles } from "@/lib/repo";
 import { GenericProduct } from "@/components/product/GenericProduct";
 import { benefitPercent, formatTenge, groupDigits, installmentPerMonth } from "@/lib/format";
 
@@ -89,10 +89,14 @@ export default async function ProductPage({
   const bundleNames = t.raw("bundleItems") as string[];
   const deliveryRows = t.raw("deliveryRows") as Row[];
   const paymentRows = t.raw("paymentRows") as Row[];
-  const relatedNames = t.raw("related") as string[];
-
   const bundle = bundleNames.map((name, i) => ({ name, priceStr: groupDigits(product.bundle.itemPrices[i]) }));
-  const related = relatedNames.map((name, i) => ({ name, ...product.related[i] }));
+
+  // Real catalog items from the same collection. Previously this was a
+  // hand-written list zipped by index with a `Product.related` message array —
+  // it pointed at four handles that do not exist, so every card 404'd.
+  const related = (await listCategoryItems(item.category, locale))
+    .filter((r) => r.handle !== handle && r.collection === item.collection)
+    .slice(0, 4);
 
   const cardLabels = {
     stock: tStock("in"),
@@ -240,7 +244,7 @@ export default async function ProductPage({
               {bundle.map((b, i) => (
                 <div key={i} className="flex items-center gap-3 lg:gap-5">
                   <div className="text-center flex-none w-24">
-                    <div className="w-24 h-[118px] lg:h-[120px] rounded-md bg-porcelain flex items-center justify-center text-[#C6D0CD]">
+                    <div className="w-24 h-[118px] lg:h-[120px] rounded-md bg-porcelain flex items-center justify-center text-border-strong">
                       <Icon name="package" size={34} strokeWidth={1} />
                     </div>
                     <div className="mt-2 font-sans text-[11px] lg:text-[12px] text-ink leading-[1.3]">{b.name}</div>
@@ -338,19 +342,22 @@ export default async function ProductPage({
         <div className="mt-8 lg:mt-14 mb-2">
           <h2 className={`${H2} mb-3.5 lg:mb-5 text-[22px]`}>{t("relatedHeading")}</h2>
           <div className="flex gap-4 overflow-x-auto pb-1 vl-noscroll lg:grid lg:grid-cols-4 lg:gap-6 lg:overflow-visible">
-            {related.map((r, i) => {
+            {related.map((r) => {
               const rPct = r.oldPrice ? benefitPercent(r.oldPrice, r.price) : 0;
               return (
-                <div key={i} className="flex-none w-[220px] lg:w-auto">
+                <div key={r.handle} className="flex-none w-[220px] lg:w-auto">
                   <ProductCard
                     name={r.name}
                     href={`/products/${r.handle}`}
                     handle={r.handle}
+                    image={r.image}
                     price={r.price}
                     oldPrice={r.oldPrice}
-                    status="in"
+                    status={r.stock}
+                    months={r.installmentMonths}
                     labels={{
                       ...cardLabels,
+                      stock: tStock(r.stock),
                       benefit: rPct > 0 ? tPrice("benefit", { pct: rPct }) : undefined,
                     }}
                   />

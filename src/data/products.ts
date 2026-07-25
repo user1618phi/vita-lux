@@ -6,12 +6,6 @@ import type { StockState } from "@/components/ui/StockStatus";
    In production this is where the Medusa product mapping would land — поля
    `brand` и `rating` в модели НЕТ (см. CLAUDE.md), бренд всегда Vita Lux. */
 
-export interface RelatedRef {
-  handle: string;
-  price: number;
-  oldPrice?: number;
-}
-
 export interface ProductData {
   handle: string;
   sku: string;
@@ -23,7 +17,6 @@ export interface ProductData {
   dims: { line: string; width: string; height: string; front: string };
   trustIcons: IconName[];
   bundle: { itemPrices: number[]; sum: number; set: number; save: number };
-  related: RelatedRef[];
   whatsappPhone: string;
 }
 
@@ -39,12 +32,6 @@ export const products: Record<string, ProductData> = {
     dims: { line: "540 × 360 × 355 мм", width: "540 мм", height: "355 мм", front: "360 мм" },
     trustIcons: ["shield-check", "package", "home"],
     bundle: { itemPrices: [189000, 95000, 32000], sum: 316000, set: 289000, save: 27000 },
-    related: [
-      { handle: "aura-600-sink", price: 78000 },
-      { handle: "aura-faucet", price: 42000, oldPrice: 52000 },
-      { handle: "aura-install", price: 95000 },
-      { handle: "aura-600-vanity", price: 165000 },
-    ],
     whatsappPhone: "77000000000",
   },
 };

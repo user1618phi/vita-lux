@@ -41,7 +41,7 @@ export function GalleryDesktop({ views, dimLabel, saleLabel }: GalleryDesktopPro
               overflow: "hidden",
             }}
           >
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "#AEB9B6" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--slate)" }}>
               0{i + 1}
             </span>
           </button>
@@ -72,11 +72,11 @@ export function GalleryDesktop({ views, dimLabel, saleLabel }: GalleryDesktopPro
             justifyContent: "center",
             gap: 14,
             background: "var(--porcelain)",
-            color: "#C6D0CD",
+            color: "var(--border-strong)",
           }}
         >
           <Icon name="package" size={96} strokeWidth={1} />
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, letterSpacing: "0.04em", color: "#9FADAA" }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, letterSpacing: "0.04em", color: "var(--slate)" }}>
             {views[active]}
           </span>
         </div>
