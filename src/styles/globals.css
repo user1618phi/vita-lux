@@ -59,6 +59,8 @@
   --ink: var(--color-ink);
   --slate: var(--color-slate);
   --brass: var(--color-brass);
+  --brass-text: var(--color-brass-text); /* brass TEXT on light — Logo tagline, links */
+  --brass-text-dark: var(--color-brass-text-dark); /* brass TEXT/icons on basalt — footer */
   --water: var(--color-water);
   --success: var(--color-success);
   --danger: var(--color-danger);
