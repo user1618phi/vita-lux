@@ -31,9 +31,7 @@ const inputStyle = {
 
 export function CheckoutView() {
   const t = useTranslations("Checkout");
-  const tCat = useTranslations("Catalog");
   const { detailed, subtotal, clear, hydrated } = useCart();
-  const names = tCat.raw("names") as Record<string, string>;
 
   const [delivery, setDelivery] = useState<Delivery>("courier");
   const [payment, setPayment] = useState<Payment>("card");
@@ -156,7 +154,7 @@ export function CheckoutView() {
                     ) : null}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="m-0 truncate font-sans text-[13px] text-ink">{names[item.handle] ?? item.handle}</p>
+                    <p className="m-0 truncate font-sans text-[13px] text-ink">{item.name}</p>
                     <p className="m-0 mt-0.5 font-sans text-[12px] text-slate vl-mono">{qty} × {tenge(item.price)}</p>
                   </div>
                 </div>

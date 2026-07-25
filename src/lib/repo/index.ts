@@ -1,17 +1,14 @@
+import "server-only";
 import { unstable_cache } from "next/cache";
 import { mockSource } from "./mock.source";
+import { dbSource } from "./db.source";
 import type { CatalogEntry, CatalogSource, CategorySummary, ResolvedLine } from "./types";
 
 /* Catalog repository — the single seam between pages and wherever product data
    actually lives. Pages import from here and nowhere else.
 
-   Server-only. Importing this from a Client Component would pull the whole
-   catalog (and, once db.source lands, the database driver) into the browser
-   bundle. Replace this guard with `import "server-only"` when that package is
-   installed alongside the Drizzle batch. */
-if (typeof window !== "undefined") {
-  throw new Error("@/lib/repo is server-only and must not be imported from a Client Component");
-}
+   `server-only` matters here: importing this from a Client Component would pull
+   the whole catalog and the Postgres driver into the browser bundle. */
 
 export type { CatalogEntry, CategorySummary, ResolvedLine } from "./types";
 
@@ -19,8 +16,15 @@ export type { CatalogEntry, CategorySummary, ResolvedLine } from "./types";
 export const CATALOG_TAG = "catalog";
 export const productTag = (handle: string) => `product:${handle}`;
 
+/* Source selection. `mock` stays the default so `pnpm dev` and CI work with no
+   database; set CATALOG_SOURCE=db once the schema is migrated and seeded. */
 function pickSource(): CatalogSource {
-  // "db" is wired in A2; mock stays the default so `pnpm dev` and CI need no database.
+  if (process.env.CATALOG_SOURCE === "db") {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("CATALOG_SOURCE=db requires DATABASE_URL to be set.");
+    }
+    return dbSource;
+  }
   return mockSource;
 }
 

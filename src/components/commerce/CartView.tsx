@@ -17,10 +17,8 @@ const tenge = (n: number) => `${groupDigits(n)} ₸`;
 
 export function CartView() {
   const t = useTranslations("Cart");
-  const tCat = useTranslations("Catalog");
   const tStock = useTranslations("Stock");
-  const { detailed, setQty, remove, subtotal, hydrated } = useCart();
-  const names = tCat.raw("names") as Record<string, string>;
+  const { detailed, setQty, remove, subtotal, hydrated, unavailable, dismissUnavailable } = useCart();
   const fired = useRef(false);
 
   useEffect(() => {
@@ -60,6 +58,30 @@ export function CartView() {
     <div className="mx-auto max-w-[1280px] px-4 lg:px-8 py-6 lg:py-10">
       <h1 className="m-0 mb-6 font-display text-ink" style={{ fontSize: "clamp(1.6rem, 4vw, 2.2rem)", lineHeight: 1.15 }}>{t("title")}</h1>
 
+      {/* Lines the catalog no longer carries. Previously they disappeared from
+          the total with no explanation. */}
+      {unavailable.length > 0 ? (
+        <div
+          role="status"
+          className="mb-5 flex items-start gap-3 rounded-lg p-4"
+          style={{ background: "var(--surface-warm)", border: "0.5px solid var(--border-control)" }}
+        >
+          <Icon name="alert-circle" size={20} color="var(--brass)" />
+          <div className="flex-1 min-w-0">
+            <p className="m-0 font-sans text-[14px] text-ink">{t("removedTitle")}</p>
+            <p className="m-0 mt-1 font-sans text-[13px] text-slate">{unavailable.join(", ")}</p>
+          </div>
+          <button
+            type="button"
+            onClick={dismissUnavailable}
+            aria-label={t("removedDismiss")}
+            style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--slate)" }}
+          >
+            <Icon name="x" size={18} />
+          </button>
+        </div>
+      ) : null}
+
       <div className="grid lg:grid-cols-[1fr_360px] gap-6 lg:gap-8">
         {/* Items */}
         <div className="flex flex-col gap-3">
@@ -72,7 +94,7 @@ export function CartView() {
               >
                 {item.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.image} alt={names[item.handle] ?? item.handle} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={item.image} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
                   <span className="flex items-center justify-center w-full h-full text-border-strong">
                     <Icon name="package" size={28} strokeWidth={1} />
@@ -85,7 +107,7 @@ export function CartView() {
                   <div className="min-w-0">
                     <span className="vl-mono text-[11px] uppercase tracking-[0.04em] text-slate">Vita Lux</span>
                     <Link href={`/products/${item.handle}`} className="block truncate font-sans text-[14px] lg:text-[15px] text-ink" style={{ textDecoration: "none" }}>
-                      {names[item.handle] ?? item.handle}
+                      {item.name}
                     </Link>
                   </div>
                   <button type="button" onClick={() => remove(item.handle)} aria-label={t("remove")} className="flex-none p-1.5 text-slate hover:text-danger" style={{ background: "transparent", border: "none", cursor: "pointer" }}>
