@@ -1,38 +1,67 @@
-# Vita Lux — vita-web
+# Vita Lux — интернет-магазин
 
-Сторфронт Vita Lux (Next.js 15 App Router · TypeScript strict · Tailwind CSS v4 · next-intl).
-Первая реализованная поверхность — **карточка товара Aura 540**, импортированная из
-Claude Design («Product Page - Aura 540»).
+Магазин сантехники собственного производства (Казахстан). Next.js 15 App
+Router, TypeScript strict, Tailwind v4, next-intl (ru/kk), PostgreSQL + Drizzle.
 
-## Запуск
+## Быстрый старт
 
 ```bash
 pnpm install
-pnpm dev            # http://localhost:8000  → редирект на /ru/products/aura-540
+cp .env.example .env.local     # для витрины на моках достаточно значений по умолчанию
+pnpm dev                       # http://localhost:8000
 ```
 
-Другие команды: `pnpm build`, `pnpm start`, `pnpm typecheck`, `pnpm lint`.
+Без базы данных сайт работает на моковом каталоге (`CATALOG_SOURCE=mock`) —
+это же используется в CI.
 
-## Что реализовано
+## С базой данных
 
-- **Карточка товара** `/[locale]/products/[handle]` — единая адаптивная страница
-  (desktop-артборд 1440 на ≥1024px, mobile-артборд 390 ниже), собранная из
-  16 блоков дизайна: галерея, Kaspi-рассрочка, доверие, характеристики, комплектация,
-  набор «с этим берут», схема монтажа, отзывы, доставка/оплата, товары коллекции,
-  липкая панель покупки на мобильном.
-- **Дизайн-токены** из Vita Lux Design System портированы в `src/styles/globals.css`
-  (Tailwind v4 `@theme` + семантические CSS-переменные). Компоненты используют
-  только семантические токены; латунь-заливка не применяется как цвет текста.
-- **Компоненты ДС** (`src/components/ui`) воссозданы из бандла: Icon, Button,
-  KaspiButton, WhatsAppButton, PriceTag, InstallmentLine, StockStatus, ProductLabel,
-  DimensionLine (сигнатурный элемент), Badge, SpecRow, EmptyState, ProductCard,
-  Breadcrumbs, Header.
-- **Двуязычность ru/kk** — весь текст в `messages/*.json`, ключи через `next-intl`,
-  переключатель РУС/ҚАЗ. Казахские глифы (ә ө ұ ү қ ң ғ һ і) проверены.
+```bash
+# 1. Секреты
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"  # APP_ENCRYPTION_KEY
+node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))" # APP_HASH_SALT
 
-## Что осталось за рамками (моки → Medusa)
+# 2. Схема и данные
+pnpm db:migrate
+pnpm db:seed        # заливает текущий моковый каталог
+pnpm db:parity      # сверяет источник БД с моковым — должно быть без расхождений
 
-Цены, характеристики и связанные товары лежат в `src/data/products.ts` как моки —
-точка будущей интеграции с Medusa. Kaspi/WhatsApp-кнопки открывают click-to-chat;
-серверная генерация реф-кода и запись в БД (учёт продаж по каналу) — следующий шаг.
-Бренд везде только `Vita Lux`; полей `brand`/`rating` в модели нет.
+# 3. Переключить витрину
+#    CATALOG_SOURCE=db в .env.local
+
+# 4. Аккаунт для админки
+pnpm db:admin -- --user brother --role owner
+```
+
+Админка: `/admin` (вне `[locale]`, только русский).
+
+## Что уже работает
+
+- **Каталог** — фильтры целиком на сервере через URL-параметры, чистые функции
+  в `src/lib/catalog.ts`, подсчёт фасетов без запроса на опцию.
+- **Слой репозитория** (`src/lib/repo`) — единственный шов между страницами и
+  источником данных. Переключение мок ↔ БД не трогает ни одной страницы.
+- **Корзина и избранное** — снапшоты в localStorage + серверная перепроверка
+  цен и наличия при монтировании.
+- **Заказы** — серверный экшен: пересчёт цен на сервере, валидация казахстанских
+  номеров, реф-код, идемпотентность, шифрование ПД, уведомление в Telegram,
+  страница заказа `/order/[ref]`.
+- **Админка** — товары, массовая правка цен и наличия, загрузка фото с телефона
+  (HEIC → WebP через sharp), настройки.
+- **Атрибуция** — first-touch UTM и referrer в middleware, запись рядом с
+  заказом. На этом держится учёт продаж по каналу.
+
+## Чего ещё нет
+
+- Онлайн-оплата (Halyk ePay, Kaspi Pay) — сейчас оплата обсуждается в WhatsApp.
+- Экран заказов в админке — заказы приходят в Telegram полным составом.
+- Реальный ассортимент: в каталоге 19 моковых позиций и фото с Unsplash.
+  Настоящие товары заводятся вручную через админку.
+- Хостинг в Казахстане — см. раздел про персональные данные в `CLAUDE.md`.
+
+## Проверки
+
+```bash
+pnpm typecheck && pnpm lint && pnpm test && pnpm build
+node scripts/check-kk-glyphs.mjs
+```
