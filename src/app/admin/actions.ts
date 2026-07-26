@@ -5,7 +5,7 @@ import { revalidateTag } from "next/cache";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db/client";
-import { audit, currentAdmin, login, logout } from "@/lib/auth";
+import { audit, can, currentAdmin, login, logout, type Capability } from "@/lib/auth";
 import { CATALOG_TAG, productTag } from "@/lib/repo";
 
 /* Admin mutations.
@@ -29,6 +29,16 @@ function refreshCatalog(handle?: string) {
 async function requireAdmin() {
   const admin = await currentAdmin();
   if (!admin) redirect("/admin/login");
+  return admin;
+}
+
+/* Server-side gate. Hiding a tab is a courtesy; this is the actual control —
+   it holds even if someone types the URL or replays the form post. */
+async function requireCapability(capability: Capability) {
+  const admin = await requireAdmin();
+  if (!can(admin.role, capability)) {
+    redirect("/admin/products?denied=1");
+  }
   return admin;
 }
 
@@ -321,7 +331,7 @@ export async function saveSettingsAction(
   _prev: unknown,
   formData: FormData,
 ): Promise<ActionResult<{ saved: number }>> {
-  const admin = await requireAdmin();
+  const admin = await requireCapability("settings");
   let saved = 0;
 
   for (const [key, raw] of formData.entries()) {
