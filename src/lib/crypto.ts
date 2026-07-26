@@ -1,4 +1,5 @@
-import "server-only";
+/* Not marked `server-only`: scripts/create-admin.ts hashes a password from the
+   command line. Nothing here is imported by a client component. */
 import {
   createCipheriv,
   createDecipheriv,

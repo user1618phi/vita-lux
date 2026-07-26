@@ -1,4 +1,7 @@
-import "server-only";
+/* Not marked `server-only`: the CLI tooling (seed, parity, create-admin) loads
+   this module outside any React context. The boundary that actually matters —
+   keeping the catalog and the driver out of the browser bundle — is enforced on
+   @/lib/repo, which is what pages and components import. */
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";

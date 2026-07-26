@@ -23,6 +23,7 @@ import { MountingScheme } from "@/components/product/MountingScheme";
 
 import { getProduct } from "@/data/products";
 import { getItem, listCategoryItems, listHandles } from "@/lib/repo";
+import { getSettings } from "@/lib/settings";
 import { GenericProduct } from "@/components/product/GenericProduct";
 import { ProductJsonLd } from "@/components/seo/ProductJsonLd";
 import { benefitPercent, formatTenge, groupDigits, installmentPerMonth } from "@/lib/format";
@@ -67,14 +68,21 @@ export default async function ProductPage({
   const tStock = await getTranslations("Stock");
   const tPrice = await getTranslations("Price");
 
-  const { price, oldPrice, installmentMonths: months, whatsappPhone: phone } = product;
-  const pct = benefitPercent(oldPrice, price);
+  /* Anything a manager can change — price, stock, name — comes from the
+     catalog, never from the static module. `products.ts` keeps only the
+     editorial extras this one page adds: the bundle, the dimensions and the
+     mounting scheme. Reading the price from there meant an admin edit updated
+     the catalog card but not the product page. */
+  const settings = await getSettings();
+  const { price, oldPrice, installmentMonths: months } = item;
+  const phone = settings.phonePrimary;
+  const pct = oldPrice ? benefitPercent(oldPrice, price) : 0;
   const perMonth = installmentPerMonth(price, months);
   const benefitText = pct > 0 ? tPrice("benefit", { pct }) : undefined;
   const perMonthUnit = t("perMonthUnit", { months });
-  const stockLabel = tStock(product.stock);
-  const productName = t("name");
-  const waMessage = `${productName} · ${t("sku")}`;
+  const stockLabel = tStock(item.stock);
+  const productName = item.name;
+  const waMessage = `${productName} · ${item.sku}`;
 
   // Localized structured content (zipped with numeric data by index).
   const crumbLabels = t.raw("breadcrumbs") as string[];
@@ -90,7 +98,14 @@ export default async function ProductPage({
   const bundleNames = t.raw("bundleItems") as string[];
   const deliveryRows = t.raw("deliveryRows") as Row[];
   const paymentRows = t.raw("paymentRows") as Row[];
-  const bundle = bundleNames.map((name, i) => ({ name, priceStr: groupDigits(product.bundle.itemPrices[i]) }));
+  /* The set is priced off the live product price, not the static one, so the
+     arithmetic still adds up after an admin changes it. Only the accessories
+     keep their editorial prices until they become real catalog items. */
+  const bundlePrices = product.bundle.itemPrices.map((p, i) => (i === 0 ? price : p));
+  const bundleSum = bundlePrices.reduce((a, b) => a + b, 0);
+  const bundleSave = Math.max(0, Math.round((bundleSum * product.bundle.save) / product.bundle.sum / 100) * 100);
+  const bundleSet = bundleSum - bundleSave;
+  const bundle = bundleNames.map((name, i) => ({ name, priceStr: groupDigits(bundlePrices[i]) }));
 
   // Real catalog items from the same collection. Previously this was a
   // hand-written list zipped by index with a `Product.related` message array —
@@ -134,7 +149,7 @@ export default async function ProductPage({
               {productName}
             </h1>
             <div className="mt-2 vl-mono text-[12px] lg:text-[13px] text-slate">
-              {t("skuLabel")}&nbsp;·&nbsp;{t("sku")}
+              {t("skuLabel")}&nbsp;·&nbsp;{item.sku}
             </div>
 
             {/* Price */}
@@ -166,7 +181,7 @@ export default async function ProductPage({
 
             {/* Stock + delivery */}
             <div className="mt-[18px] lg:mt-[22px] flex flex-col gap-2.5">
-              <StockStatus status={product.stock} label={stockLabel} />
+              <StockStatus status={item.stock} label={stockLabel} />
               <div className="flex items-center gap-2.5">
                 <Icon name="truck" size={20} color="var(--slate)" />
                 <span className="font-sans text-[14px] lg:text-[15px] text-ink">
@@ -260,15 +275,15 @@ export default async function ProductPage({
               <div className="font-sans text-[12px] lg:text-[13px] text-slate">
                 <span className="lg:hidden">{t("bundlePriceSeparatelyShort")}</span>
                 <span className="hidden lg:inline">{t("bundlePriceSeparately")}</span>{" "}
-                <span className="vl-mono line-through">{groupDigits(product.bundle.sum)}&nbsp;₸</span>
+                <span className="vl-mono line-through">{groupDigits(bundleSum)}&nbsp;₸</span>
               </div>
               <div className="mt-1.5 vl-mono font-medium text-[24px] lg:text-[30px] text-ink leading-none">
-                {groupDigits(product.bundle.set)}&nbsp;₸
+                {groupDigits(bundleSet)}&nbsp;₸
               </div>
               <div className="mt-1.5">
                 <Badge variant="success">
-                  <span className="lg:hidden">{t("bundleBenefitShort", { amount: groupDigits(product.bundle.save) })}</span>
-                  <span className="hidden lg:inline">{t("bundleBenefit", { amount: groupDigits(product.bundle.save) })}</span>
+                  <span className="lg:hidden">{t("bundleBenefitShort", { amount: groupDigits(bundleSave) })}</span>
+                  <span className="hidden lg:inline">{t("bundleBenefit", { amount: groupDigits(bundleSave) })}</span>
                 </Badge>
               </div>
               <div className="mt-3 lg:mt-4">

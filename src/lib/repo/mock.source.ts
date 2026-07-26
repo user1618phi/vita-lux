@@ -1,5 +1,5 @@
 import { catalogItems, categoryFilters, getCatalogItem, getCategoryItems } from "@/data/catalog";
-import type { CatalogItem, CategoryFilterConfig } from "@/lib/catalog";
+import { facetPolicy, type CatalogItem, type CategoryFilterConfig } from "@/lib/catalog";
 import type { CatalogEntry, CatalogSource, CategorySummary, ResolvedLine } from "./types";
 
 /* Mock catalog source: today's hardcoded inventory in src/data/catalog.ts, with
@@ -61,7 +61,24 @@ export const mockSource: CatalogSource = {
   },
 
   async getFilterConfig(category): Promise<CategoryFilterConfig | null> {
-    return categoryFilters[category] ?? null;
+    const config = categoryFilters[category];
+    if (!config) return null;
+
+    /* Narrow the declared facets to what the category actually stocks. The
+       static config lists every collection for every category, which offered
+       filters that could only ever return nothing. */
+    const items = getCategoryItems(category);
+    const present = <T>(values: T[], pick: (it: CatalogItem) => T | undefined) =>
+      values.filter((v) => items.some((it) => pick(it) === v));
+    const policy = facetPolicy(category);
+
+    return {
+      ...config,
+      collections: present(config.collections, (it) => it.collection),
+      finishes: present(config.finishes, (it) => it.finish),
+      outlet: policy.outlet ? present(config.outlet, (it) => it.outletType) : [],
+      mount: policy.mount ? present(config.mount, (it) => it.mountType) : [],
+    };
   },
 
   async getHomeHits(locale, count) {

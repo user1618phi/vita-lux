@@ -1,7 +1,9 @@
-import "server-only";
+/* Not marked `server-only`: scripts/parity.ts compares this against the mock
+   source from the command line. The guard sits on @/lib/repo, the module that
+   pages import. */
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db/client";
-import type { CatalogItem, CategoryFilterConfig, OutletType, MountType, PriceBucket } from "@/lib/catalog";
+import { facetPolicy, type CatalogItem, type CategoryFilterConfig, type OutletType, type MountType, type PriceBucket } from "@/lib/catalog";
 import type { StockState } from "@/components/ui/StockStatus";
 import type { CatalogEntry, CatalogSource, CategorySummary, ResolvedLine } from "./types";
 
@@ -203,10 +205,13 @@ export const dbSource: CatalogSource = {
 
     const uniq = <T>(xs: (T | null | undefined)[]): T[] => [...new Set(xs.filter((x): x is T => x != null))];
 
+    // Outlet and mount are only meaningful for toilets — see CATEGORY_FACETS.
+    const policy = facetPolicy(categorySlug);
+
     return {
       collections: uniq(rows.map((r) => r.collectionSlug)),
-      outlet: uniq(rows.map((r) => r.outletType)) as OutletType[],
-      mount: uniq(rows.map((r) => r.mountType)) as MountType[],
+      outlet: policy.outlet ? (uniq(rows.map((r) => r.outletType)) as OutletType[]) : [],
+      mount: policy.mount ? (uniq(rows.map((r) => r.mountType)) as MountType[]) : [],
       finishes: uniq(rows.map((r) => r.finish)),
       price: PRICE_BUCKETS,
     };
