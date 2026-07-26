@@ -1,7 +1,7 @@
 "use server";
 
 import { getLocale } from "next-intl/server";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, hasDatabase, schema } from "@/db/client";
@@ -12,6 +12,12 @@ import { normalizeKzPhone } from "@/lib/phone-kz";
 import { newRefCode } from "@/lib/order/ref";
 import { notifyNewOrder } from "@/lib/order/notify";
 import { CONSENT_VERSION } from "@/lib/order/consent";
+import {
+  ATTR_COOKIE,
+  SID_COOKIE,
+  channelOf,
+  decodeFirstTouch,
+} from "@/lib/attribution";
 
 /* Order placement.
 
@@ -226,6 +232,38 @@ async function placeOrderInner(raw: unknown): Promise<OrderResult> {
     // Deliberately no payload in the log: never write customer data to logs.
     console.error("[order] failed to persist an order");
     return { ok: false, code: "DB", message: "Не удалось сохранить заказ — напишите нам в WhatsApp" };
+  }
+
+  /* Attribution: link this sale to the first touch stamped by middleware.
+     Best-effort — losing a report row must not cost a confirmed order. */
+  try {
+    const jar = await cookies();
+    const sessionId = jar.get(SID_COOKIE)?.value;
+    if (sessionId) {
+      const firstTouch = decodeFirstTouch(jar.get(ATTR_COOKIE)?.value);
+      const [orderRow] = await db()
+        .select({ id: schema.order.id })
+        .from(schema.order)
+        .where(eq(schema.order.refCode, refCode))
+        .limit(1);
+
+      await db().insert(schema.attribution).values({
+        orderId: orderRow?.id ?? null,
+        sessionId,
+        channel: channelOf(firstTouch),
+        utmSource: firstTouch?.s ?? null,
+        utmMedium: firstTouch?.m ?? null,
+        utmCampaign: firstTouch?.c ?? null,
+        utmContent: firstTouch?.ct ?? null,
+        utmTerm: firstTouch?.t ?? null,
+        referrer: firstTouch?.r ?? null,
+        landingPath: firstTouch?.p ?? null,
+        firstTouchAt: firstTouch?.at ? new Date(firstTouch.at) : new Date(),
+        ipHash,
+      });
+    }
+  } catch {
+    // report-only data
   }
 
   /* Notification is awaited but non-fatal — the order already exists. */
