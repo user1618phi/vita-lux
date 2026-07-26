@@ -42,6 +42,25 @@ export interface CategoryFilterConfig {
   price: PriceBucket[];
 }
 
+/* Which facet GROUPS a category may show, regardless of what the data happens
+   to contain. Тип выпуска и тип монтажа осмысленны только для унитазов —
+   у смесителя «подвесной» это шум, даже если поле заполнено.
+
+   The available VALUES inside a group are always derived from the actual
+   inventory, so a filter never offers an option that yields zero results.
+   Both catalog sources apply this, which is what keeps them interchangeable. */
+export const CATEGORY_FACETS: Record<string, { outlet: boolean; mount: boolean }> = {
+  toilets: { outlet: true, mount: true },
+  sinks: { outlet: false, mount: false },
+  faucets: { outlet: false, mount: false },
+  bath: { outlet: false, mount: false },
+  furniture: { outlet: false, mount: false },
+};
+
+export function facetPolicy(category: string): { outlet: boolean; mount: boolean } {
+  return CATEGORY_FACETS[category] ?? { outlet: false, mount: false };
+}
+
 /* ---- URL <-> filter state ------------------------------------------------ */
 
 export type RawSearchParams = Record<string, string | string[] | undefined>;
