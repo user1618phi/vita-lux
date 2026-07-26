@@ -2,7 +2,7 @@ import "server-only";
 import { cookies, headers } from "next/headers";
 import { and, eq, gt, lt } from "drizzle-orm";
 import { db, schema } from "@/db/client";
-import { hashPii, hashToken, newSessionToken, verifyPassword } from "@/lib/crypto";
+import { hashEphemeral, hashToken, newSessionToken, verifyPassword } from "@/lib/crypto";
 
 /* Admin authentication.
 
@@ -53,7 +53,7 @@ function recordFailure(key: string): void {
 async function clientIpHash(): Promise<string> {
   const h = await headers();
   const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
-  return hashPii(ip);
+  return hashEphemeral(ip);
 }
 
 export type LoginResult =
