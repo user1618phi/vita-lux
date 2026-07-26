@@ -17,6 +17,7 @@ import { MobileStickyBar } from "@/components/product/MobileStickyBar";
 
 import { HOME_PHONE } from "@/data/home";
 import { listCategoryItems, type CatalogEntry } from "@/lib/repo";
+import { ProductJsonLd } from "@/components/seo/ProductJsonLd";
 import { benefitPercent, formatTenge, installmentPerMonth } from "@/lib/format";
 
 type Trust = { title: string; text: string };
@@ -87,6 +88,7 @@ export async function GenericProduct({ item }: { item: CatalogEntry }) {
 
   return (
     <div className="min-h-screen bg-porcelain">
+      <ProductJsonLd item={item} locale={locale} />
       <SiteHeader />
 
       <main className="mx-auto w-full max-w-[1280px] px-4 lg:px-8 pt-4 lg:pt-6 pb-36 lg:pb-8">
