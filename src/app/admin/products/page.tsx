@@ -10,12 +10,12 @@ export const dynamic = "force-dynamic";
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; denied?: string }>;
 }) {
   const admin = await currentAdmin();
   if (!admin) redirect("/admin/login");
 
-  const { q } = await searchParams;
+  const { q, denied } = await searchParams;
   const rows = await listAdminProducts(q);
 
   return (
@@ -38,7 +38,17 @@ export default async function ProductsPage({
         </form>
       </header>
 
-      <AdminNav current="products" />
+      <AdminNav current="products" role={admin.role} />
+
+      {denied ? (
+        <p
+          role="alert"
+          className="mt-4 mb-0 rounded-md px-3 py-2.5 font-sans text-[14px]"
+          style={{ background: "rgba(179,52,31,0.08)", color: "var(--state-danger)" }}
+        >
+          Настройки доступны только владельцу.
+        </p>
+      ) : null}
 
       <form className="mt-4 flex gap-2">
         <input

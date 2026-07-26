@@ -3,6 +3,10 @@ import { cookies, headers } from "next/headers";
 import { and, eq, gt, lt } from "drizzle-orm";
 import { db, schema } from "@/db/client";
 import { hashEphemeral, hashToken, newSessionToken, verifyPassword } from "@/lib/crypto";
+import type { AdminRole } from "@/lib/permissions";
+
+// Re-exported so callers need only one import for auth + permissions.
+export { can, OWNER_ONLY_CAPABILITIES, type AdminRole, type Capability } from "@/lib/permissions";
 
 /* Admin authentication.
 
@@ -24,7 +28,7 @@ const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 export interface AdminIdentity {
   id: string;
   username: string;
-  role: "owner" | "manager";
+  role: AdminRole;
 }
 
 /* In-memory login throttle. Good enough for a single instance and three users;

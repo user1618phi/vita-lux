@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { db, schema } from "@/db/client";
-import { currentAdmin } from "@/lib/auth";
+import { can, currentAdmin } from "@/lib/auth";
 import { AdminNav } from "../ui";
 import { SettingsForm, type SettingGroup } from "./SettingsForm";
 
@@ -46,7 +46,10 @@ const LAYOUT: { title: string; hint?: string; fields: { key: string; label: stri
 ];
 
 export default async function SettingsPage() {
-  if (!(await currentAdmin())) redirect("/admin/login");
+  const admin = await currentAdmin();
+  if (!admin) redirect("/admin/login");
+  // Курс и наценка меняют цену всего каталога разом — только владелец.
+  if (!can(admin.role, "settings")) redirect("/admin/products?denied=1");
 
   const rows = await db().select().from(schema.setting);
   const byKey = new Map(rows.map((r) => [r.key, r.value]));
@@ -63,7 +66,7 @@ export default async function SettingsPage() {
   return (
     <main className="mx-auto w-full max-w-[640px] px-4 py-5 pb-16">
       <h1 className="m-0 mb-4 font-display text-[22px] text-ink">Настройки</h1>
-      <AdminNav current="settings" />
+      <AdminNav current="settings" role={admin.role} />
       <div className="mt-5">
         <SettingsForm groups={groups} />
       </div>

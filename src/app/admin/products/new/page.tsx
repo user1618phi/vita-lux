@@ -8,7 +8,8 @@ import { ProductForm, type ProductFormValues } from "../ProductForm";
 export const dynamic = "force-dynamic";
 
 export default async function NewProductPage() {
-  if (!(await currentAdmin())) redirect("/admin/login");
+  const admin = await currentAdmin();
+  if (!admin) redirect("/admin/login");
 
   const categories = (
     await db().select({ slug: schema.category.slug }).from(schema.category).orderBy(schema.category.sort)
@@ -42,7 +43,7 @@ export default async function NewProductPage() {
         ← Все товары
       </Link>
       <h1 className="mt-2 mb-4 font-display text-[22px] text-ink">Новый товар</h1>
-      <AdminNav current="products" />
+      <AdminNav current="products" role={admin.role} />
       <div className="mt-5">
         <ProductForm values={values} categories={categories} collections={collections} photos={[]} />
       </div>

@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { can, type AdminRole } from "@/lib/permissions";
 
 /* Shared admin primitives. Deliberately plain: the storefront's design system
    is tuned for a shop window, this is a tool used one-handed on a phone in a
@@ -81,12 +82,20 @@ export function StockChip({ state }: { state: string | null }) {
   );
 }
 
-export function AdminNav({ current }: { current: "products" | "bulk" | "settings" }) {
-  const tabs = [
-    { key: "products", href: "/admin/products", label: "Товары" },
-    { key: "bulk", href: "/admin/bulk", label: "Цены и наличие" },
-    { key: "settings", href: "/admin/settings", label: "Настройки" },
-  ] as const;
+export function AdminNav({
+  current,
+  role = "owner",
+}: {
+  current: "products" | "bulk" | "settings";
+  role?: AdminRole;
+}) {
+  const tabs = (
+    [
+      { key: "products", href: "/admin/products", label: "Товары" },
+      { key: "bulk", href: "/admin/bulk", label: "Цены и наличие" },
+      { key: "settings", href: "/admin/settings", label: "Настройки", capability: "settings" as const },
+    ] as const
+  ).filter((t) => !("capability" in t) || can(role, t.capability));
 
   return (
     <nav className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>

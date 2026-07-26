@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
 const { product, productI18n, variant, price, inventory, media, category, collection } = schema;
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
-  if (!(await currentAdmin())) redirect("/admin/login");
+  const admin = await currentAdmin();
+  if (!admin) redirect("/admin/login");
   const { id } = await params;
 
   const [row] = await db()
@@ -79,7 +80,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         ← Все товары
       </Link>
       <h1 className="mt-2 mb-4 font-display text-[22px] text-ink">{values.nameRu || values.handle}</h1>
-      <AdminNav current="products" />
+      <AdminNav current="products" role={admin.role} />
       <div className="mt-5">
         <ProductForm values={values} categories={categories} collections={collections} photos={photos} />
       </div>
