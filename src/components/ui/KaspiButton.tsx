@@ -55,8 +55,9 @@ export function KaspiButton({
       }}
       {...rest}
     >
-      {/* Знак на красной кнопке идёт без подложки — диск слился бы с фоном. */}
-      <KaspiGlyph size={size === "sm" ? 20 : 24} variant="mono" />
+      {/* На красном знак ставится на белый кружок: перекрашивать чужой
+          товарный знак нельзя, а красный диск слился бы с фоном кнопки. */}
+      <KaspiGlyph size={size === "sm" ? 16 : 19} variant="onColor" />
       <span style={{ fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: size === "sm" ? 16 : 18, letterSpacing: "-0.02em" }}>
         Kaspi
       </span>
