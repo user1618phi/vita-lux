@@ -100,9 +100,21 @@ export function decryptPii(payload: string): string {
   return Buffer.concat([decipher.update(Buffer.from(ctB64, "base64url")), decipher.final()]).toString("utf8");
 }
 
-/** Deterministic lookup hash — lets orders be found by phone without decrypting. */
+/** Deterministic lookup hash — lets orders be found by phone without decrypting.
+    Throws when the salt is missing: a stored PII hash must never silently fall
+    back to an unsalted digest. */
 export function hashPii(value: string): string {
   return createHmac("sha256", hashSalt()).update(value.trim().toLowerCase()).digest("hex");
+}
+
+/**
+ * Non-secret digest for ephemeral, in-memory keys — rate-limit buckets and the
+ * like. Deliberately does NOT require APP_HASH_SALT: a missing env var must not
+ * be able to take down checkout or login, and nothing here is persisted.
+ */
+export function hashEphemeral(value: string): string {
+  const salt = process.env.APP_HASH_SALT ?? "vitalux-ephemeral";
+  return createHmac("sha256", salt).update(value).digest("base64url").slice(0, 22);
 }
 
 /* ── secrets ───────────────────────────────────────────────────────────── */

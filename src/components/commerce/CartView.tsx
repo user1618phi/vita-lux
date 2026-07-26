@@ -10,12 +10,19 @@ import { useCart } from "@/context/CartContext";
 import { groupDigits } from "@/lib/format";
 import { track } from "@/lib/analytics";
 
+/* Defaults only — the page passes the values stored in `setting`. */
 const FREE_FROM = 150000;
 const DELIVERY_COST = 3900;
 
 const tenge = (n: number) => `${groupDigits(n)} ₸`;
 
-export function CartView() {
+export function CartView({
+  freeFrom = FREE_FROM,
+  deliveryCostKzt = DELIVERY_COST,
+}: {
+  freeFrom?: number;
+  deliveryCostKzt?: number;
+} = {}) {
   const t = useTranslations("Cart");
   const tStock = useTranslations("Stock");
   const { detailed, setQty, remove, subtotal, hydrated, unavailable, dismissUnavailable } = useCart();
@@ -49,10 +56,10 @@ export function CartView() {
     );
   }
 
-  const delivery = subtotal >= FREE_FROM ? 0 : DELIVERY_COST;
+  const delivery = subtotal >= freeFrom ? 0 : deliveryCostKzt;
   const total = subtotal + delivery;
-  const toFree = Math.max(0, FREE_FROM - subtotal);
-  const progress = Math.min(100, (subtotal / FREE_FROM) * 100);
+  const toFree = Math.max(0, freeFrom - subtotal);
+  const progress = Math.min(100, (subtotal / freeFrom) * 100);
 
   return (
     <div className="mx-auto max-w-[1280px] px-4 lg:px-8 py-6 lg:py-10">

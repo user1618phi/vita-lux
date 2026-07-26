@@ -497,7 +497,14 @@
     "successDesc": "Номер заказа {order}. Менеджер свяжется с вами в течение 15 минут.",
     "toHome": "На главную",
     "continue": "Продолжить покупки",
-    "emptyCart": "Корзина пуста"
+    "emptyCart": "Корзина пуста",
+    "waConfirm": "Здравствуйте! Подтверждаю заказ {order} на сумму {total} ₸ с сайта Vita Lux.",
+    "waConfirmButton": "Подтвердить в WhatsApp",
+    "consentLabel": "Согласен на обработку персональных данных",
+    "consentLink": "Политика конфиденциальности",
+    "errorGeneric": "Не удалось оформить заказ. Попробуйте ещё раз или напишите в WhatsApp.",
+    "errorWhatsApp": "Оформить через WhatsApp",
+    "submitting": "Оформляем…"
   },
   "QuickView": {
     "quickView": "Быстрый просмотр",
@@ -543,5 +550,9 @@
     "address": "Алматы, пр. Аль-Фараби, 77",
     "payment": "Оплата: Visa · Mastercard · Kaspi · Halyk",
     "copyright": "© 2026 Vita Lux"
+  },
+  "Privacy": {
+    "title": "Политика конфиденциальности",
+    "back": "На главную"
   }
 }
