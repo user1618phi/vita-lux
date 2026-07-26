@@ -26,6 +26,7 @@ import { getItem, listCategoryItems, listHandles } from "@/lib/repo";
 import { getSettings } from "@/lib/settings";
 import { GenericProduct } from "@/components/product/GenericProduct";
 import { ProductJsonLd } from "@/components/seo/ProductJsonLd";
+import { KaspiGlyph } from "@/components/ui/KaspiGlyph";
 import { benefitPercent, formatTenge, groupDigits, installmentPerMonth } from "@/lib/format";
 
 type Spec = { label: string; value: string; unit?: string };
@@ -160,6 +161,7 @@ export default async function ProductPage({
             {/* Kaspi installment — conversion trigger */}
             <div className={`mt-4 lg:mt-6 p-[18px] lg:p-6 ${CARD}`}>
               <div className="flex items-center gap-2 flex-wrap">
+                <KaspiGlyph size={22} />
                 <span className="font-sans font-medium text-[15px] lg:text-[16px] text-kaspi tracking-[-0.01em]">
                   {t("kaspiTitle")}
                 </span>

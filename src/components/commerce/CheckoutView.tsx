@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { KaspiGlyph } from "@/components/ui/KaspiGlyph";
 import { useCart } from "@/context/CartContext";
 import { groupDigits } from "@/lib/format";
 import { track } from "@/lib/analytics";
@@ -211,8 +212,8 @@ export function CheckoutView({
           <Step n={delivery === "courier" ? 4 : 3} title={t("paymentStep")}>
             <div className="grid sm:grid-cols-2 gap-3">
               <Choice active={payment === "card"} onClick={() => setPayment("card")} icon="credit-card" title={t("payCard")} sub={t("payCardSub")} />
-              <Choice active={payment === "kaspi"} onClick={() => setPayment("kaspi")} icon="credit-card" title={t("payKaspi")} sub={t("payKaspiSub")} />
-              <Choice active={payment === "install"} onClick={() => setPayment("install")} icon="credit-card" title={t("payInstall")} sub={t("payInstallSub")} />
+              <Choice active={payment === "kaspi"} onClick={() => setPayment("kaspi")} glyph={<KaspiGlyph size={24} />} title={t("payKaspi")} sub={t("payKaspiSub")} />
+              <Choice active={payment === "install"} onClick={() => setPayment("install")} glyph={<KaspiGlyph size={24} />} title={t("payInstall")} sub={t("payInstallSub")} />
               <Choice active={payment === "cash"} onClick={() => setPayment("cash")} icon="truck" title={t("payCash")} sub={t("payCashSub")} />
             </div>
           </Step>
@@ -294,7 +295,22 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
   );
 }
 
-function Choice({ active, onClick, icon, title, sub }: { active: boolean; onClick: () => void; icon: IconName; title: string; sub: string }) {
+function Choice({
+  active,
+  onClick,
+  icon,
+  glyph,
+  title,
+  sub,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon?: IconName;
+  /** Готовый знак вместо иконки из набора — для платёжных марок. */
+  glyph?: ReactNode;
+  title: string;
+  sub: string;
+}) {
   return (
     <button
       type="button"
@@ -302,7 +318,7 @@ function Choice({ active, onClick, icon, title, sub }: { active: boolean; onClic
       className="relative flex items-center gap-3 p-4 rounded-lg text-left"
       style={{ border: active ? "1px solid var(--brass)" : "1px solid var(--border-control)", background: active ? "var(--beige)" : "transparent", cursor: "pointer" }}
     >
-      <Icon name={icon} size={24} color="var(--brass)" />
+      {glyph ?? (icon ? <Icon name={icon} size={24} color="var(--brass)" /> : null)}
       <div className="min-w-0">
         <p className="m-0 font-sans font-medium text-[14px] text-ink">{title}</p>
         <p className="m-0 mt-0.5 font-sans text-[12px] text-slate">{sub}</p>

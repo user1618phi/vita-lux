@@ -2,6 +2,7 @@
 
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { useState } from "react";
+import { KaspiGlyph } from "./KaspiGlyph";
 
 /* Kaspi channel button. The Kaspi red (#F14635) appears ONLY here.
    Radius 8px, weight 500. Used for "Купить в Kaspi" / "Рассрочка 0-0-12". */
@@ -54,7 +55,9 @@ export function KaspiButton({
       }}
       {...rest}
     >
-      <span style={{ fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: 18, letterSpacing: "-0.02em" }}>
+      {/* Знак на красной кнопке идёт без подложки — диск слился бы с фоном. */}
+      <KaspiGlyph size={size === "sm" ? 20 : 24} variant="mono" />
+      <span style={{ fontFamily: "var(--font-sans)", fontWeight: 500, fontSize: size === "sm" ? 16 : 18, letterSpacing: "-0.02em" }}>
         Kaspi
       </span>
       <span style={{ opacity: 0.85 }}>{children}</span>
