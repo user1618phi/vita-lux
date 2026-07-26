@@ -18,6 +18,7 @@ import { MobileStickyBar } from "@/components/product/MobileStickyBar";
 import { HOME_PHONE } from "@/data/home";
 import { listCategoryItems, type CatalogEntry } from "@/lib/repo";
 import { ProductJsonLd } from "@/components/seo/ProductJsonLd";
+import { KaspiGlyph } from "@/components/ui/KaspiGlyph";
 import { benefitPercent, formatTenge, installmentPerMonth } from "@/lib/format";
 
 type Trust = { title: string; text: string };
@@ -119,6 +120,7 @@ export async function GenericProduct({ item }: { item: CatalogEntry }) {
             {/* Kaspi installment */}
             <div className={`mt-4 lg:mt-6 p-[18px] lg:p-6 ${CARD}`}>
               <div className="flex items-center gap-2 flex-wrap">
+                <KaspiGlyph size={22} />
                 <span className="font-sans font-medium text-[15px] lg:text-[16px] text-kaspi tracking-[-0.01em]">{t("kaspiTitle")}</span>
                 <span className="font-sans text-[12px] lg:text-[13px] text-slate">
                   <span className="lg:hidden">{t("kaspiSubShort")}</span>
