@@ -1,50 +1,54 @@
-/* Kaspi.kz mark — red disc with the white two-figure silhouette.
+/* Официальный знак Kaspi.kz — /public/kaspi.png.
 
-   ВАЖНО: это перерисовка по образцу, а не официальный файл Kaspi. Для продакшена
-   возьмите SVG из партнёрских материалов Kaspi и замените содержимое <svg> ниже —
-   размеры и API компонента менять не придётся. Чужой товарный знак, нарисованный
-   «на глаз», выглядит непрофессионально и может нарушать их брендбук.
+   Исходник прислан как SVG, но внутри лежал растр 120×120; здесь он обрезан по
+   краю диска и приведён к квадрату 91×91. Пиксели не менялись. Для знака 22–26 px
+   это запас 3.5× даже на экранах с высокой плотностью.
 
-   Цвет фона совпадает с `--color-kaspi` (#f14635) — единственным местом, где эта
-   краснота вообще разрешена (см. KaspiButton). */
+   Товарный знак не перекрашивается и не искажается. Поэтому на красной кнопке
+   Kaspi используется вариант `onColor`: логотип как есть, но на белом кружке —
+   так партнёрские марки и размещают на цветных поверхностях. Раньше здесь был
+   белый силуэт, то есть перекрашенный чужой знак, чего делать нельзя.
+
+   Если Kaspi пришлют настоящий вектор — замените public/kaspi.png на .svg и
+   поправьте src; API компонента и все места использования останутся прежними. */
 
 export function KaspiGlyph({
   size = 24,
-  variant = "full",
+  variant = "plain",
   title,
 }: {
   size?: number;
-  /** `full` — знак на красном диске. `mono` — белый силуэт без подложки, для размещения на красной кнопке. */
-  variant?: "full" | "mono";
-  /** Задайте, если знак используется как самостоятельная картинка, а не рядом с текстом. */
+  /** `plain` — знак на светлом фоне. `onColor` — знак на белом кружке, для красной кнопки. */
+  variant?: "plain" | "onColor";
+  /** Задайте, если знак стоит без поясняющего текста рядом. */
   title?: string;
 }) {
-  const figures = (
-    <g fill={variant === "full" ? "#ffffff" : "currentColor"}>
-      {/* Меньшая фигура слева. */}
-      <circle cx="24" cy="21.5" r="7" />
-      <path d="M24 30.5c-4.2 0-7 2.7-7.4 6.7l-1.1 10.4c-.25 2.3 1.4 4.1 3.7 4.1 2 0 3.6-1.45 3.85-3.45l.75-6.1h.5l.75 6.1c.25 2 1.85 3.45 3.85 3.45 2.3 0 3.95-1.8 3.7-4.1l-1.1-10.4c-.4-4-3.2-6.7-7.45-6.7Z" />
-      {/* Большая фигура справа с рукой, поднятой вверх и вправо. */}
-      <circle cx="40.5" cy="18" r="7.6" />
-      <path d="M40.5 27.8c-4.6 0-7.7 3-8.1 7.4l-1.15 12.2c-.25 2.5 1.55 4.5 4.05 4.5 2.2 0 4-1.6 4.25-3.8l.85-7.5h.7l.85 7.5c.25 2.2 2.05 3.8 4.25 3.8 2.5 0 4.3-2 4.05-4.5l-1.15-12.2c-.4-4.4-3.5-7.4-8.1-7.4Z" />
-      <path d="M46.4 30.6c-1.5-1.5-1.5-3.8 0-5.3l4.6-4.6c1.5-1.5 3.8-1.5 5.3 0 1.5 1.5 1.5 3.8 0 5.3l-4.6 4.6c-1.5 1.5-3.8 1.5-5.3 0Z" />
-    </g>
-  );
+  // Кружок-подложка чуть больше самого знака, чтобы у диска остался воздух.
+  const pad = variant === "onColor" ? Math.round(size * 0.18) : 0;
+  const box = size + pad * 2;
 
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 64 64"
-      xmlns="http://www.w3.org/2000/svg"
-      role={title ? "img" : "presentation"}
-      aria-hidden={title ? undefined : true}
-      aria-label={title}
-      style={{ flex: "none", display: "block" }}
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flex: "none",
+        width: box,
+        height: box,
+        borderRadius: "50%",
+        background: variant === "onColor" ? "#fff" : undefined,
+      }}
     >
-      {title ? <title>{title}</title> : null}
-      {variant === "full" ? <circle cx="32" cy="32" r="32" fill="#f14635" /> : null}
-      {figures}
-    </svg>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/kaspi.png"
+        alt={title ?? ""}
+        aria-hidden={title ? undefined : true}
+        width={size}
+        height={size}
+        style={{ display: "block", width: size, height: size }}
+      />
+    </span>
   );
 }
