@@ -23,7 +23,9 @@ import {
   authResponse,
   createOrderResult,
   customerList,
+  financeAccountList,
   mutationResult,
+  procurementResponse,
   orderListResponse,
   productList,
   sessionList,
@@ -33,7 +35,9 @@ import {
   type CreateOrderResult,
   type CreateReturnPayload,
   type Customer,
+  type FinanceAccount,
   type OrderRow,
+  type Procurement,
   type Product,
   type SessionRow,
   type WhatIsNew,
@@ -212,6 +216,33 @@ export function createClient(options: ClientOptions = {}) {
       const endpoint = `/api/session?kassa_id=${config.kassaId}&show_last=1`;
       const rows = parse(endpoint, sessionList, await request(endpoint));
       return rows[0] ?? null;
+    },
+
+    /**
+     * Все клиенты компании.
+     *
+     * Без `page`, и это не упущение: на боевом аккаунте параметр
+     * ИГНОРИРУЕТСЯ — вторая и третья страницы отдают тех же 33 клиентов, что
+     * и первая. Пагинацию по клиентам строить нельзя.
+     */
+    async listCustomers(): Promise<Customer[]> {
+      const endpoint = "/api/customers?is_supplier=0";
+      const rows = parse(endpoint, customerList, await request(endpoint));
+      return rows.filter((r) => r.is_deleted !== "1");
+    },
+
+    /** Денежные счета с текущими остатками. Архивные отфильтрованы. */
+    async listAccounts(): Promise<FinanceAccount[]> {
+      const endpoint = "/api/finance_accounts";
+      const rows = parse(endpoint, financeAccountList, await request(endpoint));
+      return rows.filter((r) => r.is_archived !== "1");
+    },
+
+    /** Приёмки, списания, перемещения и ревизии. */
+    async listProcurements(perPage = 100): Promise<Procurement[]> {
+      const endpoint = `/api/procurements?per_page=${perPage}`;
+      const parsed = parse(endpoint, procurementResponse, await request(endpoint));
+      return (parsed.procurements ?? []).filter((p) => p.is_deleted !== "1");
     },
 
     async findCustomerByPhone(phone: string): Promise<Customer | null> {

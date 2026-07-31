@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageShell } from "@/components/PageShell";
 import { redirect } from "next/navigation";
 import { currentAdmin } from "@/lib/auth";
 import { groupDigits } from "@vita/core/format";
@@ -10,7 +11,7 @@ import {
   type OrderStatus,
 } from "@vita/core/order/labels";
 import { logoutAction } from "../actions";
-import { AdminNav, OrderStatusChip, PageShell, inputStyle } from "../ui";
+import { OrderStatusChip, inputStyle } from "../ui";
 import { listOrders } from "./actions";
 import { ORDERS_PER_PAGE } from "./pagination";
 
@@ -79,7 +80,6 @@ export default async function OrdersPage({
     <PageShell
       title="Заказы"
       width="wide"
-      nav={<AdminNav current="orders" role={admin.role} username={admin.username} logoutAction={logoutAction} />}
     >
       <form className="flex flex-wrap gap-2">
         <input type="hidden" name="status" value={status} />

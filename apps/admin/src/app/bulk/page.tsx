@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
+import { PageShell } from "@/components/PageShell";
 import { currentAdmin } from "@/lib/auth";
 import Link from "next/link";
 import { listAdminProducts, listCategorySlugs, logoutAction } from "../actions";
-import { AdminNav, PageShell } from "../ui";
+
 import { BulkForm } from "./BulkForm";
 
 export const dynamic = "force-dynamic";
@@ -32,9 +33,6 @@ export default async function BulkPage({
     <PageShell
       title="Цены и наличие"
       width="wide"
-      nav={
-        <AdminNav current="bulk" role={admin.role} username={admin.username} logoutAction={logoutAction} />
-      }
     >
       <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
         {categories.map((c) => (

@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { PageShell } from "@/components/PageShell";
 import { notFound, redirect } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@vita/db/client";
 import { currentAdmin } from "@/lib/auth";
 import { logoutAction } from "../../actions";
-import { AdminNav, PageShell } from "../../ui";
+
 import { ProductForm, type ProductFormValues } from "../ProductForm";
 
 export const dynamic = "force-dynamic";
@@ -86,9 +87,6 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         >
           ← Все товары
         </Link>
-      }
-      nav={
-        <AdminNav current="products" role={admin.role} username={admin.username} logoutAction={logoutAction} />
       }
     >
       <ProductForm values={values} categories={categories} collections={collections} photos={photos} />

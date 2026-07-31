@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
+import { PageShell } from "@/components/PageShell";
 import { can, currentAdmin } from "@/lib/auth";
 import { logoutAction } from "../actions";
-import { AdminNav, PageShell } from "../ui";
+
 import { listAccounts } from "./actions";
 import { AccountsView } from "./AccountsView";
 
@@ -17,7 +18,6 @@ export default async function AccountsPage() {
   return (
     <PageShell
       title="Доступ"
-      nav={<AdminNav current="accounts" role={admin.role} username={admin.username} logoutAction={logoutAction} />}
     >
       <AccountsView rows={rows} currentId={admin.id} />
     </PageShell>
