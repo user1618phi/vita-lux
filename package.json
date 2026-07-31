@@ -17,7 +17,8 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:parity": "tsx scripts/parity.ts",
     "db:admin": "tsx scripts/create-admin.ts",
-    "db:media": "tsx scripts/mirror-media.ts"
+    "db:media": "tsx scripts/mirror-media.ts",
+    "x2pos:sync": "tsx scripts/x2pos-sync.ts"
   },
   "devDependencies": {
     "@types/node": "22.10.7",
@@ -27,6 +28,7 @@
     "@vita/data": "workspace:*",
     "@vita/db": "workspace:*",
     "@vita/i18n": "workspace:*",
+    "@vita/x2pos": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.9",
     "sharp": "^0.35.3",

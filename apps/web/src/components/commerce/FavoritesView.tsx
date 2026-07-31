@@ -8,7 +8,7 @@ import { ProductCard } from "@/components/ui/ProductCard";
 import { Reveal } from "@/components/ui/Reveal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useCart } from "@/context/CartContext";
-import { benefitPercent } from "@vita/core/format";
+import { benefitPercent, formatTenge } from "@vita/core/format";
 
 function labelFor(badge: string | undefined, pct: number, hit: string, isNew: string) {
   if (badge === "hit") return { kind: "hit" as const, text: hit };
@@ -70,11 +70,19 @@ export function FavoritesView() {
                 handle={it.handle}
                 image={it.image}
                 price={it.price}
+                wholesalePrice={it.wholesalePrice}
                 oldPrice={it.oldPrice}
                 status={it.stock}
                 months={it.installmentMonths}
                 productLabel={labelFor(it.badge, pct, tCat("labelHit"), tCat("labelNew"))}
-                labels={{ ...baseLabels, stock: tStock(it.stock), benefit: pct > 0 ? tPrice("benefit", { pct }) : undefined }}
+                labels={{
+                  ...baseLabels,
+                  stock: tStock(it.stock),
+                  benefit: pct > 0 ? tPrice("benefit", { pct }) : undefined,
+                  wholesaleFrom: it.wholesalePrice
+                    ? tPrice("wholesaleFrom", { price: formatTenge(it.wholesalePrice) })
+                    : undefined,
+                }}
               />
             </Reveal>
           );

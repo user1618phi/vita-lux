@@ -3,7 +3,7 @@ import { ProductCard } from "@/components/ui/ProductCard";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHead } from "./SectionHead";
 import { getHomeHits } from "@vita/data/repo";
-import { benefitPercent } from "@vita/core/format";
+import { benefitPercent, formatTenge } from "@vita/core/format";
 
 /* HitsRow — top models, reusing the exact catalog ProductCard (same labels,
    badges, stock states). Names arrive already localized from the repository. */
@@ -48,6 +48,7 @@ export async function HitsRow() {
                 handle={it.handle}
                 image={it.image}
                 price={it.price}
+                wholesalePrice={it.wholesalePrice}
                 oldPrice={it.oldPrice}
                 status={it.stock}
                 months={it.installmentMonths}
@@ -56,6 +57,9 @@ export async function HitsRow() {
                   ...baseLabels,
                   stock: tStock(it.stock),
                   benefit: pct > 0 ? tPrice("benefit", { pct }) : undefined,
+                  wholesaleFrom: it.wholesalePrice
+                    ? tPrice("wholesaleFrom", { price: formatTenge(it.wholesalePrice) })
+                    : undefined,
                 }}
               />
             </Reveal>

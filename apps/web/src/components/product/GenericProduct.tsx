@@ -49,9 +49,14 @@ export async function GenericProduct({ item }: { item: CatalogEntry }) {
   const materialName = item.material ? tFilters(`materials.${item.material}`) : undefined;
   const categoryName = tCategories(`${item.category}.breadcrumb`);
 
-  const { price, oldPrice, installmentMonths: months } = item;
+  const { price, oldPrice, wholesalePrice, installmentMonths: months } = item;
   const pct = oldPrice ? benefitPercent(oldPrice, price) : 0;
   const benefitText = pct > 0 ? tPrice("benefit", { pct }) : undefined;
+  /* Склад оптовый, и на карточке товара оптовая цена — половина причины, по
+     которой сюда приходят. Строку собираем здесь: компоненты денег не форматируют. */
+  const wholesaleText = wholesalePrice
+    ? tPrice("wholesaleFrom", { price: formatTenge(wholesalePrice) })
+    : undefined;
   const perMonth = installmentPerMonth(price, months);
   const perMonthUnit = t("perMonthUnit", { months });
   /* См. комментарий в products/[handle]/page.tsx: у «Спросить» и «Рассрочки»
@@ -119,7 +124,14 @@ export async function GenericProduct({ item }: { item: CatalogEntry }) {
             </div>
 
             <div className="mt-4 lg:mt-6">
-              <PriceTag price={price} oldPrice={oldPrice} size="lg" benefitText={benefitText} />
+              <PriceTag
+                price={price}
+                oldPrice={oldPrice}
+                wholesalePrice={wholesalePrice}
+                wholesaleText={wholesaleText}
+                size="lg"
+                benefitText={benefitText}
+              />
             </div>
 
             {/* Kaspi installment */}
@@ -203,6 +215,7 @@ export async function GenericProduct({ item }: { item: CatalogEntry }) {
                       image={r.image}
                       price={r.price}
                       oldPrice={r.oldPrice}
+                      wholesalePrice={r.wholesalePrice}
                       status={r.stock}
                       months={r.installmentMonths}
                       labels={{ ...cardLabels, stock: tStock(r.stock), benefit: rPct > 0 ? tPrice("benefit", { pct: rPct }) : undefined }}

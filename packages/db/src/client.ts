@@ -38,3 +38,8 @@ export function db() {
 }
 
 export { schema };
+
+/* The connection type, for code that takes a database as an argument rather
+   than reaching for the singleton — which is what makes the X2pos sync
+   runnable from both a route handler and a CLI script. */
+export type Database = ReturnType<typeof db>;

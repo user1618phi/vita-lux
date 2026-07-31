@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /* Vita Lux schema.
 
@@ -161,7 +162,17 @@ export const variant = pgTable(
     sort: integer("sort").notNull().default(0),
     externalId: text("external_id"),
   },
-  (t) => [index("variant_product_idx").on(t.productId), index("variant_sku_idx").on(t.sku)],
+  (t) => [
+    index("variant_product_idx").on(t.productId),
+    index("variant_sku_idx").on(t.sku),
+    /* Partial, because most variants have no external id and NULLs would
+       otherwise not collide anyway — but the ones that DO come from X2pos must
+       collide, or a re-run of the sync would insert a second copy of every
+       variant. This is what makes the importer idempotent. */
+    uniqueIndex("variant_external_idx")
+      .on(t.externalId)
+      .where(sql`${t.externalId} is not null`),
+  ],
 );
 
 /* ── pricing ───────────────────────────────────────────────────────────── */
@@ -184,6 +195,19 @@ export const price = pgTable(
     fxRate: numeric("fx_rate", { precision: 10, scale: 2 }),
     retailKzt: integer("retail_kzt"),
     oldKzt: integer("old_kzt"),
+
+    /* Both prices X2pos keeps, in whole tenge.
+
+       `wholesaleUsdCents` above cannot carry this: it is USD cents, from the
+       era when pricing started at an imported wholesale cost. X2pos quotes
+       tenge for both figures, so they get their own columns rather than a
+       lossy conversion through an FX rate we would have to invent.
+
+       `baseRetailKzt` is the untouched X2pos retail price; `retailKzt` is that
+       figure after the shop-wide markup. Keeping the base means changing the
+       markup re-prices the catalogue without waiting for X2pos. */
+    wholesaleKzt: integer("wholesale_kzt"),
+    baseRetailKzt: integer("base_retail_kzt"),
     mode: priceMode("mode").notNull().default("manual"),
     roundTo: integer("round_to").notNull().default(1000),
     validFrom: timestamp("valid_from", { withTimezone: true }).notNull().defaultNow(),
@@ -220,6 +244,12 @@ export const media = pgTable(
     altKk: text("alt_kk"),
     kind: mediaKind("kind").notNull().default("photo"),
     sort: integer("sort").notNull().default(0),
+
+    /* Source URL in X2pos, for photos the sync pulled in. Two jobs: skip
+       re-downloading an image that has not changed, and mark which rows the
+       sync owns — a row with a NULL here was uploaded by a human through the
+       admin and must never be overwritten. */
+    externalId: text("external_id"),
   },
   (t) => [index("media_product_idx").on(t.productId, t.sort)],
 );
@@ -270,6 +300,11 @@ export const order = pgTable(
     idempotencyKey: text("idempotency_key").notNull().unique(),
     notifyStatus: notifyStatus("notify_status").notNull().default("pending"),
     adminNote: text("admin_note"),
+
+    /* The sale this order became in X2pos. Null until the outbox delivers it.
+       Needed to issue the refund that puts stock back if the order is
+       cancelled — a return in X2pos has to reference the original sale. */
+    x2posOrderId: text("x2pos_order_id"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
@@ -389,3 +424,46 @@ export const auditLog = pgTable(
   },
   (t) => [index("audit_entity_idx").on(t.entity, t.entityId)],
 );
+
+/* ── X2pos integration ─────────────────────────────────────────────────── */
+
+/* Outbound queue for everything the site has to tell X2pos.
+
+   It exists because the two systems fail independently. A customer placing an
+   order must not be turned away because the warehouse app is down, and a sale
+   must not be silently lost because it was. So the order and its intent to
+   reach X2pos are written in one transaction, and delivery is retried
+   afterwards until it succeeds.
+
+   `formGuid` is the idempotency key on the X2pos side: replaying a POST with
+   the same guid updates the same sale instead of creating a second one, which
+   is what makes a retry safe after an ambiguous timeout. */
+export const x2posOutbox = pgTable(
+  "x2pos_outbox",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").notNull(), // "sale" | "return"
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => order.id, { onDelete: "cascade" }),
+    formGuid: text("form_guid").notNull().unique(),
+    payload: jsonb("payload").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("x2pos_outbox_pending_idx").on(t.doneAt, t.nextAttemptAt)],
+);
+
+/* Sync cursors: how far the last successful import got.
+
+   Deliberately not in `setting`. That table is cached under SETTINGS_TAG and
+   read by the storefront on every render; a cursor that changes every five
+   minutes has no business invalidating the shop's settings cache. */
+export const x2posSyncState = pgTable("x2pos_sync_state", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

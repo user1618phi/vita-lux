@@ -11,6 +11,7 @@ import { encryptPii, hashEphemeral, hashPii } from "@vita/core/crypto";
 import { normalizeKzPhone } from "@vita/core/phone-kz";
 import { newRefCode } from "@vita/core/order/ref";
 import { notifyNewOrder } from "@/lib/order/notify";
+import { enqueueSale, findSoldOut, resolveVariants, tryDeliverNow } from "@/lib/order/x2pos";
 import { CONSENT_VERSION } from "@vita/core/order/consent";
 import {
   ATTR_COOKIE,
@@ -150,6 +151,26 @@ async function placeOrderInner(raw: unknown): Promise<OrderResult> {
     };
   });
 
+  /* Живая сверка остатка с X2pos.
+
+     `inventory` в нашей БД обновляется кроном раз в пять минут, а склад
+     физически один: ту же раковину могли продать в магазине минуту назад.
+     Запрос к `/api/stock` стоит ~90 мс и закрывает это окно.
+
+     Мягкая: если X2pos недоступен, `findSoldOut` возвращает пустой список и
+     оформление идёт по данным из БД. Отказать покупателю из-за лежащего
+     склада хуже, чем риск перепродажи, который и так прикрыт буфером. */
+  const withVariants = await resolveVariants(items);
+  const soldOut = await findSoldOut(withVariants, settings.stockBufferQty);
+  if (soldOut.length) {
+    return {
+      ok: false,
+      code: "ITEM_UNAVAILABLE",
+      handles: soldOut,
+      message: "Часть товаров разобрали — обновите корзину",
+    };
+  }
+
   const subtotal = items.reduce((s, i) => s + i.lineTotalKzt, 0);
   const deliveryKzt =
     input.deliveryMethod === "pickup" || subtotal >= settings.freeFromKzt ? 0 : settings.deliveryCostKzt;
@@ -210,6 +231,25 @@ async function placeOrderInner(raw: unknown): Promise<OrderResult> {
               lineTotalKzt: i.lineTotalKzt,
             })),
           );
+
+          /* Задание на выгрузку продажи в X2pos — в ТОЙ ЖЕ транзакции.
+             Либо есть и заказ, и задание, либо нет ничего: состояние «заказ
+             принят, а склад о нём никогда не узнает» недопустимо.
+
+             В `note` уходят только реф-код, способ доставки и город. Имя и
+             телефон остаются в зашифрованных колонках заказа. */
+          await enqueueSale(tx, {
+            orderId: row.id,
+            refCode: candidate,
+            lines: withVariants,
+            note: [
+              `Сайт ${candidate}`,
+              input.deliveryMethod === "pickup" ? "самовывоз" : "доставка",
+              input.city ?? "",
+            ]
+              .filter(Boolean)
+              .join(", "),
+          });
         });
         refCode = candidate;
       } catch (err) {
@@ -233,6 +273,11 @@ async function placeOrderInner(raw: unknown): Promise<OrderResult> {
     console.error("[order] failed to persist an order");
     return { ok: false, code: "DB", message: "Не удалось сохранить заказ — напишите нам в WhatsApp" };
   }
+
+  /* Попытка отдать продажу в X2pos прямо сейчас, чтобы продавец увидел заказ
+     в кассе немедленно, а не через пять минут. Никогда не бросает: заказ уже
+     сохранён, и провал сети не должен превращаться в ошибку оформления. */
+  await tryDeliverNow();
 
   /* Attribution: link this sale to the first touch stamped by middleware.
      Best-effort — losing a report row must not cost a confirmed order. */
