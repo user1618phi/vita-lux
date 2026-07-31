@@ -1,0 +1,19 @@
+/* Vita Lux — global styles.
+   Design tokens ported from the Vita Lux Design System (colors, typography,
+   spacing, layout, motion). Components use ONLY semantic tokens — never raw
+   primitives. Two weights only (400/500). No shadows except the brass focus
+   ring. No gradients. Page background is Porcelain, never pure #FFF. */
+
+/* Webfonts.
+   - Kazakh (default): Golos Text everywhere — it ships the full Kazakh glyph set
+     ә ө ұ ү қ ң ғ һ і (Playfair lacks those, so kk must not use it).
+   - Russian: matches the Figma macket — Playfair Display (headings) + Inter (body).
+     Applied per-locale via html[lang="ru"] below. */
+@import url("https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap");
+@import "tailwindcss";
+@import "@vita/ui/tokens.css";
+
+/* Tailwind ищет использованные классы от каталога ЭТОГО файла. Компоненты
+   пакета лежат вне дерева приложения, поэтому их путь указан явно — иначе
+   классы из @vita/ui молча выпадут из сборки. */
+@source "../../../../packages/ui/src";

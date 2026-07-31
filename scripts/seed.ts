@@ -10,10 +10,11 @@
    admin panel, not here. */
 
 import { readFileSync } from "node:fs";
+import { messagesDir } from "@vita/i18n/paths";
 import { eq } from "drizzle-orm";
-import { db, schema } from "../src/db/client.ts";
-import { catalogItems } from "../src/data/catalog.ts";
-import { homeCategories } from "../src/data/home.ts";
+import { db, schema } from "@vita/db/client";
+import { catalogItems } from "@vita/data/content/catalog";
+import { homeCategories } from "@vita/data/content/home";
 
 const {
   brand,
@@ -31,7 +32,9 @@ const {
 const LOCALES = ["ru", "kk"] as const;
 
 function namesFor(locale: string): Record<string, string> {
-  const raw = JSON.parse(readFileSync(new URL(`../messages/${locale}.json`, import.meta.url), "utf8"));
+  // Путь берётся у @vita/i18n, а не собирается от этого файла: локали уже
+  // переезжали, и относительные пути к ним ломались молча.
+  const raw = JSON.parse(readFileSync(new URL(`${locale}.json`, messagesDir), "utf8"));
   return raw?.Catalog?.names ?? {};
 }
 
@@ -39,7 +42,7 @@ function namesFor(locale: string): Record<string, string> {
    what lets the brother change a phone or a delivery threshold without a deploy.
    Values are the existing placeholders — real ones are entered in the admin. */
 const SETTINGS: Record<string, unknown> = {
-  "contact.phonePrimary": "77000000000",
+  "contact.phonePrimary": "77079961717",
   "contact.phoneSecondary": "",
   "contact.city": "",
   "contact.address": "",

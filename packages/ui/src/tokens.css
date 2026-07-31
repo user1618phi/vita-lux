@@ -1,0 +1,342 @@
+/* Vita Lux — единственный источник правды по токенам дизайн-системы.
+
+   Здесь НЕТ `@import "tailwindcss"` и НЕТ подключения шрифтов: и то и другое
+   обязано стоять первым в CSS-файле приложения, а `@import` внутри
+   импортируемого файла уехал бы вниз и молча перестал работать.
+   Приложение подключает так:
+
+     @import url("…шрифты…");
+     @import "tailwindcss";
+     @import "@vita/ui/tokens.css";
+     @source "…путь к packages/ui/src…";
+
+   `@source` обязателен: Tailwind ищет классы от каталога того CSS, который
+   импортирует tailwindcss, — то есть от приложения, и без подсказки не увидит
+   классы, использованные в компонентах этого пакета. */
+
+
+/* ============ Tailwind theme — semantic utilities ============
+   Generates bg, text, border, font and rounded utilities from the DS tokens. */
+@theme {
+  /* Warm palette (aligned to the Vita Lux macket: bronze accent, beige, warm
+     whites/darks). Contrast still holds WCAG per the brief.
+
+     READ THIS BEFORE CHANGING A VALUE. These names are ROLES, not literal
+     colors. `ink` is "the maximum-contrast text color", `porcelain` is "the page
+     ground", `glaze` is "the surface that sits against ink" — and each role is
+     re-pointed at a different hex under [data-theme="dark"] below. That is why
+     `text-ink` and `bg-porcelain` stay correct in both themes without any
+     `dark:` variant in the components.
+     Two roles are exempt and never flip: --color-on-dark / --color-on-light,
+     for text whose ground is a photo rather than a theme surface. */
+  --color-porcelain: #fbfaf7; /* page background — near-white, never pure white */
+  --color-glaze: #f3ede3; /* raised cards & surfaces — warm (figure over the white page) */
+  --color-beige: #eaddca; /* deeper warm accent surface — promo / CTA plaques */
+  --color-white: #ffffff; /* true white — header/tab-bar surfaces & inputs */
+  --color-basalt: #23201c; /* dark editorial blocks: footer, hero, tiles */
+  --color-ink: #1a1917; /* primary text & primary buttons (warm near-black) */
+  --color-slate: #6a655d; /* secondary text (warm) */
+  --color-brass: #a97c50; /* single accent — FILLS/ICONS/RING only, never text */
+  --color-brass-text: #83602f; /* brass TEXT on light (passes 4.5:1) */
+  --color-brass-text-dark: #c8a077; /* brass TEXT on dark */
+  --color-water: #14494b; /* info, sparingly */
+  --color-success: #1e6b4a; /* in stock */
+  --color-danger: #b3341f; /* errors, out of stock */
+  --color-line: #e8e1d6; /* hairline borders / dividers (warm) */
+  --color-border-strong: #d9d1c3; /* control borders (warm) */
+  --color-field: #efe9df; /* input fill (warm) */
+  --color-kaspi: #f14635; /* Kaspi red — only on Kaspi buttons */
+  --color-whatsapp: #25d366; /* WhatsApp green — only on WhatsApp buttons */
+
+  /* Fixed-polarity colors. These do NOT flip with the theme: they sit on ground
+     whose darkness is a fact of the content, not of the theme — photos, the
+     scrim, the basalt block. */
+  --color-on-dark: #fbfaf7; /* text/marks over a photo, scrim or basalt block */
+  --color-on-light: #23201c; /* text on a light chip laid over a photo */
+
+  /* Defaults = Golos Text (Kazakh-safe). Russian overrides to Playfair + Inter
+     per the macket via html[lang="ru"] below. */
+  --font-display: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --radius-sm: 4px; /* chips, checkboxes */
+  --radius-md: 8px; /* buttons & inputs — never a pill */
+  --radius-lg: 12px; /* cards & images — max radius */
+}
+
+/* ============ Design token aliases ============
+   Exact var names used by the source design (inline styles, SVG fills, scrim).
+   Kept so ported markup reads 1:1 with the design document. */
+:root {
+  color-scheme: light;
+
+  --porcelain: var(--color-porcelain);
+  --glaze: var(--color-glaze);
+  --beige: var(--color-beige);
+  --white: var(--color-white);
+  --basalt: var(--color-basalt);
+  --ink: var(--color-ink);
+  --slate: var(--color-slate);
+  --brass: var(--color-brass);
+  --brass-text: var(--color-brass-text); /* brass TEXT on light — Logo tagline, links */
+  --brass-text-dark: var(--color-brass-text-dark); /* brass TEXT/icons on basalt — footer */
+  --water: var(--color-water);
+  --success: var(--color-success);
+  --danger: var(--color-danger);
+  --line: var(--color-line);
+  --border-strong: var(--color-border-strong);
+  --field: var(--color-field);
+  --kaspi-red: var(--color-kaspi);
+  --whatsapp-green: var(--color-whatsapp);
+
+  /* Semantic text */
+  --text-primary: var(--color-ink);
+  --text-secondary: var(--color-slate);
+  --text-accent: var(--color-brass-text); /* brass text on light */
+  --text-accent-on-dark: var(--color-brass-text-dark);
+  --text-on-dark: var(--color-on-dark); /* over photo / scrim / basalt — never flips */
+  --text-on-light: var(--color-on-light); /* on a light chip over a photo — never flips */
+  --text-on-dark-muted: rgba(237, 241, 240, 0.62);
+  --text-on-brass: #ffffff; /* label inside a brass fill (count badges, check marks) */
+
+  /* Логотип. Днём весь блок — одно золото, ночью весь белый.
+     Тон взят от --brass-text, а не от --brass: надпись VITA LUX — это текст,
+     на светлом фоне ей нужны 4.5:1, и заливочная латунь их не даёт. Знак в том
+     же тоне, иначе рядом с надписью он выглядит выцветшим. */
+  --logo-mark: var(--color-brass-text);
+  --logo-text: var(--color-brass-text);
+
+  /* Surfaces / borders */
+  --surface-page: var(--color-porcelain);
+  --surface-card: var(--color-glaze);
+  --surface-warm: var(--color-beige);
+  --surface-inverse: var(--color-basalt);
+  --surface-control: var(--color-field);
+  --surface-media: var(--color-porcelain); /* plate a product photo sits on */
+  /* Cream plaque for a button laid over photography — the hero CTA. Fixed in
+     both themes: its ground is the photo, and the photo is dark either way. */
+  --surface-on-photo: #f3ede3;
+  --surface-on-photo-hover: #fbfaf7;
+  --surface-on-photo-active: #ece3d5;
+  --text-on-photo: #1a1917;
+  --border: var(--color-line);
+  --border-control: var(--color-border-strong);
+  --focus-ring: var(--color-brass);
+
+  /* States */
+  --state-success: var(--color-success);
+  --state-danger: var(--color-danger);
+
+  /* Status tints — the wash behind a status chip. Kept as tokens because the
+     alpha that reads as "a faint wash" on porcelain disappears on basalt. */
+  --tint-brass: rgba(168, 123, 65, 0.12);
+  --tint-brass-border: rgba(168, 123, 65, 0.28);
+  --tint-success: rgba(30, 107, 74, 0.1);
+  --tint-success-border: rgba(30, 107, 74, 0.25);
+  --tint-danger: rgba(179, 38, 30, 0.08);
+  --tint-danger-border: rgba(179, 38, 30, 0.22);
+  --tint-info: rgba(20, 73, 75, 0.08);
+  --tint-info-border: rgba(20, 73, 75, 0.2);
+  --tint-whatsapp: rgba(37, 211, 102, 0.08);
+  --whatsapp-text: #1c7a46; /* WhatsApp green readable as text (the brand green is not) */
+
+  /* Actions */
+  --action-primary-bg: var(--color-ink);
+  --action-primary-text: var(--color-glaze);
+  --action-primary-hover: #2d2823;
+  --action-primary-active: #000000;
+  --action-secondary-bg: var(--color-glaze);
+  --action-secondary-text: var(--color-ink);
+  --action-secondary-hover: var(--color-porcelain);
+  --action-secondary-active: #ece3d5;
+
+  /* Photo scrim — solid fill, never a gradient */
+  --scrim: rgba(26, 25, 23, 0.55);
+
+  /* Radii (alias to Tailwind theme values) */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Type scale */
+  --text-display-l: 40px;
+  --text-display-m: 30px;
+  --text-title: 22px;
+  --text-body-l: 18px;
+  --text-body: 16px;
+  --text-body-s: 14px;
+  --text-caption: 13px;
+  --text-micro: 11px;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --tracking-label: 0.06em;
+
+  /* Layout */
+  --container-max: 1280px;
+  --gutter: 16px;
+
+  /* Motion */
+  --transition: 180ms ease-out;
+}
+
+@media (min-width: 768px) {
+  :root { --gutter: 24px; }
+}
+@media (min-width: 1440px) {
+  :root { --gutter: 32px; }
+}
+
+/* ============ Dark theme — «Ночной базальт» ============
+   Same room, lights down: the light theme is porcelain in daylight, this one is
+   basalt stone under warm lamps, which is literally what the hero photo shows.
+   Every neutral keeps the warm 30–35° hue of the light palette, so nothing goes
+   blue-grey; the bronze is the only chroma, as in daylight.
+
+   Only the ROLE POINTERS move — the components are untouched. Set on <html> by
+   the inline script in the layout, so the first paint is already correct. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Surfaces, from deepest to highest. Steps are ~1.1:1 apart: enough to read
+     as elevation, not enough to look like stripes. */
+  --color-basalt: #0c0b09; /* editorial block — the well under the page: hero, footer */
+  --color-porcelain: #16130e; /* page ground — warm near-black, never pure #000 */
+  --color-field: #1b1812; /* input fill — recessed below the card it sits on */
+  --color-white: #201c16; /* raised chrome: header, tab bar, drawer, floating buttons */
+  --color-glaze: #241f18; /* cards & panels */
+  --color-beige: #302719; /* warm plaque — promo / CTA, the one bronze-leaning surface */
+
+  /* Text. Warm off-white rather than #fff: pure white on a dark ground haloes
+     at display sizes, and Playfair's thin strokes bloom. */
+  --color-ink: #f3eee5; /* primary text — and, inverted, the primary button fill */
+  --color-slate: #a9a197; /* secondary text — 7.3:1 on the page ground */
+
+  /* Bronze. The daylight brass goes muddy on a dark ground, so both the fill and
+     the text tone step up in lightness while holding the same hue. */
+  --color-brass: #b98b57; /* fills, icons, focus ring — 6.1:1 on the page */
+  --color-brass-text: #c8a077; /* accent text — 7.7:1 on the page */
+
+  /* Hairlines. On dark, a border works by being lighter than its surface. */
+  --color-line: #302b23;
+  --color-border-strong: #453e33;
+
+  /* Status. The daylight values are too dark to read here; these are the same
+     hues lifted into the 4.5:1 band against every surface above. */
+  --color-success: #4caf80;
+  --color-danger: #ef6a53;
+  --color-water: #6fb3b0;
+
+  /* Roles that don't simply follow a primitive */
+  --surface-media: #1b1812; /* photo plate — flip to a light value if product shots
+                               ever arrive as cut-outs on white */
+  /* Ночью логотип целиком белый: золото на тёмном тускнеет, а знак — первое,
+     что читают в шапке. */
+  --logo-mark: #ffffff;
+  --logo-text: #ffffff;
+  --text-on-brass: #1b1812; /* the lifted bronze is light enough to take dark text (5.8:1) */
+  --scrim: rgba(6, 5, 4, 0.62);
+
+  --action-primary-hover: #fffaf1;
+  --action-primary-active: #e2d9c9;
+  --action-secondary-hover: #2c2620;
+  --action-secondary-active: #332c24;
+
+  /* Tints need roughly 1.5× the daylight alpha to register on a dark surface. */
+  --tint-brass: rgba(185, 139, 87, 0.12);
+  --tint-brass-border: rgba(185, 139, 87, 0.34);
+  --tint-success: rgba(76, 175, 128, 0.12);
+  --tint-success-border: rgba(76, 175, 128, 0.32);
+  --tint-danger: rgba(239, 106, 83, 0.12);
+  --tint-danger-border: rgba(239, 106, 83, 0.32);
+  --tint-info: rgba(111, 179, 176, 0.12);
+  --tint-info-border: rgba(111, 179, 176, 0.3);
+  --tint-whatsapp: rgba(37, 211, 102, 0.14);
+  --whatsapp-text: #43c97f;
+}
+
+/* ============ Base document ============ */
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-weight: var(--weight-regular);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--surface-page);
+}
+
+a { color: var(--text-accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Display headings render at medium weight for presence (Golos 400 reads light at
+   large sizes). Unlayered so it wins over the `font-normal` utility. */
+h1, h2, h3 { font-weight: var(--weight-medium); }
+
+/* Russian matches the Figma macket: Playfair Display (headings) + Inter (body),
+   headings at weight 600. Kazakh keeps Golos everywhere — Playfair lacks its
+   glyphs (ә ө ү қ ң ғ һ). Locale set on <html lang>. */
+html[lang="ru"] {
+  --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+html[lang="ru"] h1,
+html[lang="ru"] h2,
+html[lang="ru"] h3 {
+  font-weight: 600;
+}
+
+/* Utility roles */
+.vl-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 0;
+}
+
+/* Photography carries its own light: a studio shot on a white sweep is brighter
+   than anything the palette can produce, so on a dark page it becomes the glare
+   the theme exists to avoid. Taking 10% off settles it into the page without
+   looking washed out. Marked per-image rather than on `img`, because the Kaspi
+   trademark is also an <img> and must never be re-toned. */
+html[data-theme="dark"] .vl-photo {
+  filter: brightness(0.9);
+}
+
+/* Theme-conditional content. Lets the theme toggle show the right icon and label
+   in the very first frame, without React state and therefore without a flicker
+   on load. Wraps content — never put these on an element that carries its own
+   `display`. */
+html[data-theme="dark"] .vl-when-light,
+html:not([data-theme="dark"]) .vl-when-dark {
+  display: none;
+}
+
+/* Hide scrollbars on horizontal snap rails (mobile gallery / carousels) */
+.vl-noscroll { scrollbar-width: none; }
+.vl-noscroll::-webkit-scrollbar { width: 0; height: 0; }
+
+/* The only "shadow" in the system: the brass focus ring. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@keyframes vl-spin { to { transform: rotate(360deg); } }
+@keyframes vl-sheetup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes vl-scalein { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes vl-fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes vl-rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

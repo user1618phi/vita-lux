@@ -8,8 +8,8 @@
 
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { db, schema } from "../src/db/client.ts";
-import { hashPassword } from "../src/lib/crypto.ts";
+import { db, schema } from "@vita/db/client";
+import { hashPassword } from "@vita/core/crypto";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);

@@ -1,0 +1,26 @@
+{
+  "name": "@vita/data",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./repo": "./src/repo/index.ts",
+    "./repo/types": "./src/repo/types.ts",
+    "./repo/db.source": "./src/repo/db.source.ts",
+    "./repo/mock.source": "./src/repo/mock.source.ts",
+    "./settings": "./src/settings.ts",
+    "./content/catalog": "./src/content/catalog.ts",
+    "./content/home": "./src/content/home.ts",
+    "./content/products": "./src/content/products.ts"
+  },
+  "dependencies": {
+    "@vita/core": "workspace:*",
+    "@vita/db": "workspace:*",
+    "@vita/i18n": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "server-only": "^0.0.1"
+  },
+  "peerDependencies": {
+    "next": "15.5.22"
+  }
+}

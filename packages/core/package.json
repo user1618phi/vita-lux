@@ -1,0 +1,26 @@
+{
+  "name": "@vita/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./analytics": "./src/analytics.ts",
+    "./attribution": "./src/attribution.ts",
+    "./catalog": "./src/catalog.ts",
+    "./crypto": "./src/crypto.ts",
+    "./format": "./src/format.ts",
+    "./icons": "./src/icons.ts",
+    "./img": "./src/img.ts",
+    "./order/consent": "./src/order/consent.ts",
+    "./order/ref": "./src/order/ref.ts",
+    "./permissions": "./src/permissions.ts",
+    "./phone-kz": "./src/phone-kz.ts",
+    "./pricing": "./src/pricing.ts",
+    "./site": "./src/site.ts",
+    "./stock": "./src/stock.ts"
+  },
+  "scripts": {
+    "test": "node --test --experimental-strip-types \"src/**/*.test.ts\""
+  }
+}
