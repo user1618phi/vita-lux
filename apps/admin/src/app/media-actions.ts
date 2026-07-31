@@ -3,7 +3,8 @@
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { and, eq, max } from "drizzle-orm";
-import { processPhoto } from "@vita/core/image";
+import { z } from "zod";
+import { processPhoto, readFormat } from "@vita/core/image";
 import { db, schema } from "@vita/db/client";
 import { audit, currentAdmin } from "@/lib/auth";
 import { storage } from "@vita/core/storage";
@@ -17,10 +18,30 @@ import { publish } from "@/lib/revalidate";
    and `accept` also nudges iOS into transcoding, but unsupported input is
    reported in plain Russian rather than failing silently. */
 
-const MAX_BYTES = 10 * 1024 * 1024;
-const ACCEPTED = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
-const LARGE_PX = 1600;
-const THUMB_PX = 400;
+/* 4 МБ — ровно столько принимает Server Action (`next.config.ts`), и это
+   честный предел: жёсткий потолок Vercel на тело запроса 4.5 МБ.
+   Раньше здесь стояло 10 МБ. Проверка не срабатывала НИКОГДА — запрос обрывался
+   на границе платформы, до входа в экшен, — а текст ошибки обещал пользователю
+   лимит, которого не существовало. */
+const MAX_BYTES = 4 * 1024 * 1024;
+
+/* Форматы, которые умеет декодировать sharp на сервере. Проверяются по
+   СОДЕРЖИМОМУ файла, а не по `file.type`: тип приходит от клиента и ничего не
+   доказывает. */
+const ACCEPTED_FORMATS = new Set(["jpeg", "png", "webp", "heif", "avif"]);
+
+/* Идентификаторы приходят из скрытых полей формы — то есть от клиента.
+   Валидируем как UUID: подделанный запрос не должен добираться до SQL и до
+   путей в хранилище (productId раньше подставлялся в ключ объекта как есть). */
+const mediaSchema = z.object({
+  productId: z.string().uuid("Некорректный товар").optional(),
+  mediaId: z.string().uuid("Некорректное фото").optional(),
+  handle: z
+    .string()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .optional()
+    .or(z.literal("")),
+});
 
 export async function uploadPhotosAction(
   _prev: unknown,
@@ -29,9 +50,13 @@ export async function uploadPhotosAction(
   const admin = await currentAdmin();
   if (!admin) redirect("/login");
 
-  const productId = String(formData.get("productId") ?? "");
-  const handle = String(formData.get("handle") ?? "");
-  if (!productId) return { error: "Не указан товар" };
+  const parsed = mediaSchema.safeParse({
+    productId: String(formData.get("productId") ?? ""),
+    handle: String(formData.get("handle") ?? ""),
+  });
+  if (!parsed.success || !parsed.data.productId) return { error: "Не указан товар" };
+  const productId = parsed.data.productId;
+  const handle = parsed.data.handle ?? "";
 
   const files = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
   if (!files.length) return { error: "Выберите хотя бы одно фото" };
@@ -47,13 +72,23 @@ export async function uploadPhotosAction(
 
   for (const file of files) {
     if (file.size > MAX_BYTES) {
-      return { error: `«${file.name}» больше 10 МБ — сожмите или выберите другое фото` };
-    }
-    if (file.type && !ACCEPTED.has(file.type)) {
-      return { error: `Формат «${file.type}» не поддерживается. Нужен JPEG, PNG, WebP или HEIC.` };
+      return { error: `«${file.name}» слишком большой — загрузите фото по одному` };
     }
 
     const input = Buffer.from(await file.arrayBuffer());
+
+    /* Тип определяем по самому файлу. `file.type` задаёт браузер, и доверять
+       ему нельзя: подделанный запрос объявит что угодно. sharp читает сигнатуру
+       и отвечает, что там на самом деле. */
+    let format: string | undefined;
+    try {
+      ({ format } = await readFormat(input));
+    } catch {
+      return { error: `«${file.name}» не похож на изображение` };
+    }
+    if (!format || !ACCEPTED_FORMATS.has(format)) {
+      return { error: `Формат «${format ?? "неизвестный"}» не поддерживается. Нужен JPEG, PNG или WebP.` };
+    }
 
     /* Конвейер общий с scripts/mirror-media.ts — @vita/core/image. Две копии
        означали бы два разных представления о том, каким получится фото. */
@@ -97,9 +132,13 @@ export async function deletePhotoAction(formData: FormData) {
   const admin = await currentAdmin();
   if (!admin) redirect("/login");
 
-  const mediaId = String(formData.get("mediaId") ?? "");
-  const handle = String(formData.get("handle") ?? "");
-  if (!mediaId) return;
+  const parsed = mediaSchema.safeParse({
+    mediaId: String(formData.get("mediaId") ?? ""),
+    handle: String(formData.get("handle") ?? ""),
+  });
+  if (!parsed.success || !parsed.data.mediaId) return;
+  const mediaId = parsed.data.mediaId;
+  const handle = parsed.data.handle ?? "";
 
   const [row] = await db()
     .select({ path: schema.media.path, productId: schema.media.productId })
@@ -123,10 +162,14 @@ export async function makeCoverAction(formData: FormData) {
   const admin = await currentAdmin();
   if (!admin) redirect("/login");
 
-  const mediaId = String(formData.get("mediaId") ?? "");
-  const productId = String(formData.get("productId") ?? "");
-  const handle = String(formData.get("handle") ?? "");
-  if (!mediaId || !productId) return;
+  const parsed = mediaSchema.safeParse({
+    mediaId: String(formData.get("mediaId") ?? ""),
+    productId: String(formData.get("productId") ?? ""),
+    handle: String(formData.get("handle") ?? ""),
+  });
+  if (!parsed.success || !parsed.data.mediaId || !parsed.data.productId) return;
+  const { mediaId, productId } = parsed.data;
+  const handle = parsed.data.handle ?? "";
 
   const rows = await db()
     .select({ id: schema.media.id })

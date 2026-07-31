@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
 import { deletePhotoAction, makeCoverAction, uploadPhotosAction } from "../media-actions";
+import { MAX_UPLOAD_BYTES, compressImage } from "@/lib/compress";
 import { Button, ConfirmButton, ErrorBox, SaveNotice } from "../ui";
 
 export function PhotoManager({
@@ -18,33 +19,76 @@ export function PhotoManager({
     null as { error?: string; ok?: boolean; uploaded?: number; published?: boolean } | null,
   );
 
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, startTransition] = useTransition();
+  const [progress, setProgress] = useState<string | null>(null);
+  const [tooBig, setTooBig] = useState<string | null>(null);
+
+  /* Форма не отправляется напрямую: сначала каждый файл сжимается в браузере,
+     и только потом собирается FormData. Отправить оригинал нельзя — снимок с
+     телефона не пролезет в лимит тела запроса. */
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setTooBig(null);
+
+    const picked = Array.from(inputRef.current?.files ?? []);
+    if (!picked.length) return;
+
+    const fd = new FormData();
+    fd.set("productId", productId);
+    fd.set("handle", handle);
+
+    let total = 0;
+    for (const [i, file] of picked.entries()) {
+      setProgress(`Сжимаем ${i + 1} из ${picked.length}…`);
+      const compressed = await compressImage(file);
+      total += compressed.size;
+      if (total > MAX_UPLOAD_BYTES) {
+        setProgress(null);
+        setTooBig(
+          `Слишком много за раз (${Math.round(total / 1024 / 1024)} МБ). Загрузите по 2-3 фото.`,
+        );
+        return;
+      }
+      fd.append("photos", compressed);
+    }
+
+    setProgress(null);
+    startTransition(() => action(fd));
+  }
+
+  const working = pending || busy || progress !== null;
+
   return (
     <div>
-      <ErrorBox>{state?.error}</ErrorBox>
+      <ErrorBox>{tooBig ?? state?.error}</ErrorBox>
       <SaveNotice ok={state?.ok} published={state?.published}>
         Загружено фото: {state?.uploaded}.
       </SaveNotice>
 
-      <form action={action} className="flex flex-col gap-3">
-        <input type="hidden" name="productId" value={productId} />
-        <input type="hidden" name="handle" value={handle} />
-
+      <form onSubmit={submit} className="flex flex-col gap-3">
         {/* `capture="environment"` opens the rear camera straight from the
             warehouse; the accept list also pushes iOS to hand over JPEG. */}
         <input
+          ref={inputRef}
           type="file"
-          name="photos"
           accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
           capture="environment"
           multiple
           className="font-sans text-[length:var(--text-body-s)] text-ink"
         />
 
-        <Button type="submit" variant="secondary" size="sm" pending={pending} pendingLabel="Загружаем…">
+        <Button
+          type="submit"
+          variant="secondary"
+          size="sm"
+          pending={working}
+          pendingLabel={progress ?? "Загружаем…"}
+        >
           Загрузить фото
         </Button>
         <p className="m-0 font-sans" style={{ fontSize: "var(--text-micro)", color: "var(--text-secondary)" }}>
-          Сжимаем и конвертируем в WebP автоматически.
+          Уменьшаем прямо в телефоне до отправки — фото любого размера подойдёт.
         </p>
       </form>
 

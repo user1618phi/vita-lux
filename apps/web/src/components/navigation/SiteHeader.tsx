@@ -99,109 +99,118 @@ export function SiteHeader() {
   const phoneHref = `tel:+${t("phone").replace(/\D/g, "")}`;
 
   return (
-    <header
-      className="sticky top-0 z-40"
-      style={{
-        background: "var(--white)",
-        borderBottom: "1px solid var(--line)",
-        transform: compact ? `translateY(-${stripH}px)` : "translateY(0)",
-        transition: "transform 220ms ease-out",
-      }}
-    >
-      {/* Utility bar — desktop */}
-      <div className="hidden md:block" style={{ borderBottom: "0.5px solid var(--line)" }}>
-        <div
-          className="mx-auto max-w-[1280px] px-6 flex items-center justify-between h-9"
-          style={{ fontSize: "12px", color: "var(--slate)" }}
-        >
-          <span className="flex items-center gap-1.5">
-            <Icon name="map-pin" size={14} color="var(--brass)" />
-            {t("deliveryBar")}
-          </span>
-          <div className="flex items-center gap-5">
-            <span>{t("installmentBar")}</span>
-            <a href={phoneHref} className="flex items-center gap-1.5" style={{ color: "var(--ink)", textDecoration: "none" }}>
-              <Icon name="phone" size={14} color="var(--brass)" />
+    <>
+      <header
+        className="sticky top-0 z-40"
+        style={{
+          background: "var(--white)",
+          borderBottom: "1px solid var(--line)",
+          transform: compact ? `translateY(-${stripH}px)` : "translateY(0)",
+          transition: "transform 220ms ease-out",
+        }}
+      >
+        {/* Utility bar — desktop */}
+        <div className="hidden md:block" style={{ borderBottom: "0.5px solid var(--line)" }}>
+          <div
+            className="mx-auto max-w-[1280px] px-6 flex items-center justify-between h-9"
+            style={{ fontSize: "12px", color: "var(--slate)" }}
+          >
+            <span className="flex items-center gap-1.5">
+              <Icon name="map-pin" size={14} color="var(--brass)" />
+              {t("deliveryBar")}
+            </span>
+            <div className="flex items-center gap-5">
+              <span>{t("installmentBar")}</span>
+              <a href={phoneHref} className="flex items-center gap-1.5" style={{ color: "var(--ink)", textDecoration: "none" }}>
+                <Icon name="phone" size={14} color="var(--brass)" />
+                {t("phone")}
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* Полоса контактов — мобильная. Телефон здесь, а не в строке с логотипом:
+            на 390px там остаётся 51px свободного места, номер туда не помещается.
+            Высота 44px — это и полноценная цель для пальца, и ровно столько,
+            сколько занимает та же полоса на десктопе. */}
+        <div ref={stripRef} className="md:hidden" style={{ borderBottom: "0.5px solid var(--line)" }}>
+          <div className="mx-auto max-w-[1280px] px-4 flex items-center justify-between gap-3" style={{ height: 44 }}>
+            {/* Обещание слева, действие справа — как в десктопной полосе.
+                min-w-0 + truncate: казахский текст на 10–20% длиннее русского и
+                без обрезки вытолкнул бы номер за край. */}
+            <span className="min-w-0 truncate flex items-center gap-1.5" style={{ fontSize: 12, color: "var(--slate)" }}>
+              <Icon name="map-pin" size={14} color="var(--brass)" />
+              <span className="truncate">{t("deliveryBar")}</span>
+            </span>
+            <a
+              href={phoneHref}
+              className="flex-none flex items-center gap-1.5"
+              style={{
+                height: 44,
+                fontSize: 15,
+                fontWeight: 500,
+                color: "var(--ink)",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Icon name="phone" size={16} color="var(--brass)" />
               {t("phone")}
             </a>
           </div>
         </div>
-      </div>
 
-      {/* Полоса контактов — мобильная. Телефон здесь, а не в строке с логотипом:
-          на 390px там остаётся 51px свободного места, номер туда не помещается.
-          Высота 44px — это и полноценная цель для пальца, и ровно столько,
-          сколько занимает та же полоса на десктопе. */}
-      <div ref={stripRef} className="md:hidden" style={{ borderBottom: "0.5px solid var(--line)" }}>
-        <div className="mx-auto max-w-[1280px] px-4 flex items-center justify-between gap-3" style={{ height: 44 }}>
-          {/* Обещание слева, действие справа — как в десктопной полосе.
-              min-w-0 + truncate: казахский текст на 10–20% длиннее русского и
-              без обрезки вытолкнул бы номер за край. */}
-          <span className="min-w-0 truncate flex items-center gap-1.5" style={{ fontSize: 12, color: "var(--slate)" }}>
-            <Icon name="map-pin" size={14} color="var(--brass)" />
-            <span className="truncate">{t("deliveryBar")}</span>
-          </span>
-          <a
-            href={phoneHref}
-            className="flex-none flex items-center gap-1.5"
-            style={{
-              height: 44,
-              fontSize: 15,
-              fontWeight: 500,
-              color: "var(--ink)",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-            }}
+        {/* Main bar */}
+        <div className="mx-auto max-w-[1280px] px-4 md:px-6 flex items-center gap-4 h-16 lg:h-[72px]">
+          <button
+            type="button"
+            className="md:hidden inline-flex items-center justify-center"
+            aria-label={t("menu")}
+            onClick={() => setOpen(true)}
+            style={{ width: 40, height: 40, marginLeft: -8, background: "transparent", border: "none", borderRadius: "var(--radius-md)", cursor: "pointer" }}
           >
-            <Icon name="phone" size={16} color="var(--brass)" />
-            {t("phone")}
-          </a>
-        </div>
-      </div>
+            <Icon name="menu" size={24} color="var(--ink)" />
+          </button>
 
-      {/* Main bar */}
-      <div className="mx-auto max-w-[1280px] px-4 md:px-6 flex items-center gap-4 h-16 lg:h-[72px]">
-        <button
-          type="button"
-          className="md:hidden inline-flex items-center justify-center"
-          aria-label={t("menu")}
-          onClick={() => setOpen(true)}
-          style={{ width: 40, height: 40, marginLeft: -8, background: "transparent", border: "none", borderRadius: "var(--radius-md)", cursor: "pointer" }}
-        >
-          <Icon name="menu" size={24} color="var(--ink)" />
-        </button>
+          <Link href="/" aria-label="Vita Lux" style={{ textDecoration: "none", flex: "none" }}>
+            <Logo />
+          </Link>
 
-        <Link href="/" aria-label="Vita Lux" style={{ textDecoration: "none", flex: "none" }}>
-          <Logo />
-        </Link>
+          <nav className="hidden lg:flex flex-1 items-center justify-center gap-7">
+            {NAV.map((k) => (
+              <Link key={k} href={`/catalog/${k}`} style={{ fontSize: "15px", fontWeight: 500, color: "var(--ink)", textDecoration: "none", whiteSpace: "nowrap" }}>
+                {tn(k)}
+              </Link>
+            ))}
+          </nav>
 
-        <nav className="hidden lg:flex flex-1 items-center justify-center gap-7">
-          {NAV.map((k) => (
-            <Link key={k} href={`/catalog/${k}`} style={{ fontSize: "15px", fontWeight: 500, color: "var(--ink)", textDecoration: "none", whiteSpace: "nowrap" }}>
-              {tn(k)}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="flex items-center gap-1 ml-auto">
-          <LanguageSwitcher />
-          {/* Theme, favorites and cart live in the mobile drawer / bottom tab bar —
-              show them here only from md up. */}
-          <div className="hidden md:flex items-center gap-1">
-            <ThemeToggle />
-            <Link href="/favorites" aria-label={t("favorites")} style={{ ...iconBtn, position: "relative" }}>
-              <Icon name="heart" size={22} color="var(--ink)" />
-              {hydrated && favCount > 0 ? <CountBadge>{favCount}</CountBadge> : null}
-            </Link>
-            <Link href="/cart" aria-label={t("cart")} style={{ ...iconBtn, position: "relative" }}>
-              <Icon name="shopping-bag" size={22} color="var(--ink)" />
-              {hydrated && count > 0 ? <CountBadge>{count}</CountBadge> : null}
-            </Link>
+          <div className="flex items-center gap-1 ml-auto">
+            <LanguageSwitcher />
+            {/* Theme, favorites and cart live in the mobile drawer / bottom tab bar —
+                show them here only from md up. */}
+            <div className="hidden md:flex items-center gap-1">
+              <ThemeToggle />
+              <Link href="/favorites" aria-label={t("favorites")} style={{ ...iconBtn, position: "relative" }}>
+                <Icon name="heart" size={22} color="var(--ink)" />
+                {hydrated && favCount > 0 ? <CountBadge>{favCount}</CountBadge> : null}
+              </Link>
+              <Link href="/cart" aria-label={t("cart")} style={{ ...iconBtn, position: "relative" }}>
+                <Icon name="shopping-bag" size={22} color="var(--ink)" />
+                {hydrated && count > 0 ? <CountBadge>{count}</CountBadge> : null}
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer.
+
+          Лежит СНАРУЖИ <header> и это обязательное условие. У шапки есть
+          `transform` (полоса с телефоном уезжает при скролле), а любой
+          ненулевой transform делает элемент точкой отсчёта для `position:
+          fixed` внутри него. Оказавшись внутри, меню растягивалось не на
+          экран, а на шапку — 390×110, из категорий не было видно ни одной.
+          Ничего не добавляй в <header> с `position: fixed`. */}
       {open ? (
         <div className="md:hidden" role="dialog" aria-modal="true" aria-label={t("menu")} style={{ position: "fixed", inset: 0, zIndex: 50 }}>
           <button type="button" aria-label={t("close")} onClick={() => setOpen(false)} style={{ position: "absolute", inset: 0, border: "none", padding: 0, background: "var(--scrim)", cursor: "pointer" }} />
@@ -239,6 +248,6 @@ export function SiteHeader() {
           </div>
         </div>
       ) : null}
-    </header>
+    </>
   );
 }

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db, schema } from "@vita/db/client";
 import { audit, can, currentAdmin, login, logout, type Capability } from "@/lib/auth";
 import { CATALOG_TAG, SETTINGS_TAG, productTag } from "@vita/data/repo/tags";
+import { SETTING_KEYS } from "@vita/data/settings";
 import { publish } from "@/lib/revalidate";
 
 /* Admin mutations.
@@ -29,7 +30,11 @@ const { product, productI18n, variant, price, inventory, setting } = schema;
 /* Explicit result shapes. Without them TypeScript narrows each action to
    whichever branch it happens to return, and useActionState rejects the
    mismatch at the call site. */
-export type ActionResult<T = Record<string, never>> = Partial<T> & {
+/* Дефолт — `Record<never, never>`, а не `Record<string, never>`.
+   У второго `Partial<T>` объявляет ЛЮБОЙ строковый ключ как `undefined`, и
+   собственные поля результата (`error`, `ok`) начинают конфликтовать сами с
+   собой, стоит вызвать `ActionResult` без параметра. */
+export type ActionResult<T = Record<never, never>> = Partial<T> & {
   ok?: boolean;
   error?: string;
   /* Дошёл ли сброс кэша до витрины. `undefined` — вопрос не поднимался
@@ -62,8 +67,11 @@ async function requireCapability(capability: Capability) {
 /* ── auth ──────────────────────────────────────────────────────────────── */
 
 export async function loginAction(_prev: unknown, formData: FormData): Promise<{ error: string } | never> {
-  const username = String(formData.get("username") ?? "");
-  const password = String(formData.get("password") ?? "");
+  /* Потолок длины важен: scrypt считается ДО того, как выяснится, что пароль
+     неверный, поэтому мегабайтная строка стоила бы сервером ровно столько же,
+     сколько настоящая попытка. */
+  const username = String(formData.get("username") ?? "").slice(0, 100);
+  const password = String(formData.get("password") ?? "").slice(0, 200);
 
   if (!username || !password) {
     return { error: "Введите логин и пароль" };
@@ -341,19 +349,26 @@ export async function saveProductAction(
 }
 
 /** Show / hide a product on the storefront without deleting it. */
-export async function toggleVisibilityAction(formData: FormData) {
+export async function toggleVisibilityAction(
+  _prev: unknown,
+  formData: FormData,
+): Promise<ActionResult> {
   const admin = await requireAdmin();
+  /* Раньше экшен при любой неувязке делал голый `return`, и форма отправлялась
+     без обратной связи: человек нажимал «Скрыть с сайта», ничего не менялось, и
+     понять почему было нельзя. Теперь каждый выход что-то сообщает. */
   const id = String(formData.get("productId") ?? "");
   const handle = String(formData.get("handle") ?? "");
-  if (!id) return;
+  if (!z.string().uuid().safeParse(id).success) return { error: "Некорректный товар" };
 
   const [row] = await db().select({ status: product.status }).from(product).where(eq(product.id, id)).limit(1);
-  if (!row) return;
+  if (!row) return { error: "Товар не найден" };
 
   const next = row.status === "active" ? "draft" : "active";
   await db().update(product).set({ status: next, updatedAt: new Date() }).where(eq(product.id, id));
   await audit(admin.id, "product", id, "visibility", { status: row.status }, { status: next });
-  await publishCatalog(handle);
+  const published = await publishCatalog(handle);
+  return { ok: true, published };
 }
 
 /* ── settings ──────────────────────────────────────────────────────────── */
@@ -365,9 +380,19 @@ export async function saveSettingsAction(
   const admin = await requireCapability("settings");
   let saved = 0;
 
+  /* Белый список ключей — из того же источника, что читает витрина.
+
+     Раньше цикл принимал ЛЮБОЙ ключ по маске `setting.*` и писал его как есть:
+     подделанный POST мог насыпать в таблицу произвольные строки, а опечатка в
+     имени поля создавала мёртвую настройку, которую никто никогда не прочитает
+     (именно так и появились ключи `pricing.*`). */
+  const allowed = new Set(Object.values(SETTING_KEYS));
+
   for (const [key, raw] of formData.entries()) {
     const m = /^setting\.(.+)$/.exec(key);
     if (!m) continue;
+    if (!allowed.has(m[1])) return { error: `Неизвестная настройка «${m[1]}»` };
+
     const text = String(raw).trim();
     // Numeric-looking settings are stored as numbers so the storefront can do
     // arithmetic without parsing.
@@ -407,17 +432,38 @@ export interface AdminProductRow {
   image: string | null;
 }
 
-export async function listAdminProducts(query?: string): Promise<AdminProductRow[]> {
+/**
+ * Список товаров для админских экранов.
+ *
+ * `categorySlug` и `limit` появились не для красоты. Экран `/bulk` рендерит на
+ * каждую строку два поля ввода и сохраняет всё одним запросом, а серверный цикл
+ * делает на строку до пяти обращений к БД ПОСЛЕДОВАТЕЛЬНО. На 19 товарах это
+ * незаметно, на 200 — сотни полей в одном DOM и запрос, который упрётся в
+ * таймаут функции. Поэтому массовое редактирование теперь идёт по категориям.
+ *
+ * Метасимволы LIKE в запросе экранируются: без этого «100%» в поиске означало
+ * бы «что угодно», а «_» — «любой символ».
+ */
+export async function listAdminProducts(
+  query?: string,
+  opts?: { categorySlug?: string; limit?: number },
+): Promise<AdminProductRow[]> {
   await requireAdmin();
 
   const search = query?.trim();
-  const where = search
-    ? or(
-        ilike(productI18n.name, `%${search}%`),
-        ilike(product.handle, `%${search}%`),
-        ilike(variant.sku, `%${search}%`),
-      )
-    : undefined;
+  const escaped = search?.replace(/[\\%_]/g, (c) => `\\${c}`);
+  const conditions = [];
+  if (escaped) {
+    conditions.push(
+      or(
+        ilike(productI18n.name, `%${escaped}%`),
+        ilike(product.handle, `%${escaped}%`),
+        ilike(variant.sku, `%${escaped}%`),
+      ),
+    );
+  }
+  if (opts?.categorySlug) conditions.push(eq(schema.category.slug, opts.categorySlug));
+  const where = conditions.length ? and(...conditions) : undefined;
 
   return db()
     .select({
@@ -440,5 +486,16 @@ export async function listAdminProducts(query?: string): Promise<AdminProductRow
     .leftJoin(inventory, eq(inventory.variantId, variant.id))
     .leftJoin(schema.media, and(eq(schema.media.productId, product.id), eq(schema.media.sort, 0)))
     .where(where)
-    .orderBy(schema.category.sort, product.sortWeight);
+    .orderBy(schema.category.sort, product.sortWeight)
+    .limit(opts?.limit ?? 500);
+}
+
+/** Категории для фильтра — нужен и списку товаров, и массовому редактированию. */
+export async function listCategorySlugs(): Promise<string[]> {
+  await requireAdmin();
+  const rows = await db()
+    .select({ slug: schema.category.slug })
+    .from(schema.category)
+    .orderBy(schema.category.sort);
+  return rows.map((r) => r.slug);
 }

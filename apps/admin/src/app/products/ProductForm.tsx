@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { saveProductAction, toggleVisibilityAction } from "../actions";
-import { Button, ErrorBox, Field, inputStyle } from "../ui";
+import { Button, ErrorBox, Field, SaveNotice, inputStyle } from "../ui";
 import { PhotoManager } from "./PhotoManager";
 
 /* Product editor.
@@ -41,6 +41,10 @@ export function ProductForm({
   photos: { id: string; url: string }[];
 }) {
   const [state, action, pending] = useActionState(saveProductAction, null as { error?: string } | null);
+  const [vis, visibilityAction, visPending] = useActionState(
+    toggleVisibilityAction,
+    null as { ok?: boolean; error?: string; published?: boolean } | null,
+  );
   const isNew = !values.productId;
 
   return (
@@ -57,7 +61,7 @@ export function ProductForm({
           <input name="nameKk" defaultValue={values.nameKk} required style={inputStyle} />
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Цена, ₸" hint="Пусто = по запросу">
             <input
               name="retailKzt"
@@ -132,7 +136,7 @@ export function ProductForm({
               <input name="finish" defaultValue={values.finish} style={inputStyle} />
             </Field>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <Field label="Ширина, мм">
                 <input name="widthMm" defaultValue={values.widthMm ?? ""} inputMode="numeric" style={inputStyle} />
               </Field>
@@ -165,10 +169,14 @@ export function ProductForm({
       )}
 
       {values.productId ? (
-        <form action={toggleVisibilityAction} className="mt-8">
+        <form action={visibilityAction} className="mt-8">
+          <ErrorBox>{vis?.error}</ErrorBox>
+          <SaveNotice ok={vis?.ok} published={vis?.published}>
+            Видимость изменена.
+          </SaveNotice>
           <input type="hidden" name="productId" value={values.productId} />
           <input type="hidden" name="handle" value={values.handle} />
-          <Button type="submit" variant="secondary" size="sm">
+          <Button type="submit" variant="secondary" size="sm" pending={visPending} pendingLabel="Меняем…">
             {values.status === "active" ? "Скрыть с сайта" : "Показать на сайте"}
           </Button>
         </form>

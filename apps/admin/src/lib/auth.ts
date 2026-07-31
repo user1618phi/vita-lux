@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
-import { and, eq, gt, lt } from "drizzle-orm";
+import { and, count, eq, gt, isNull, lt } from "drizzle-orm";
 import { db, schema } from "@vita/db/client";
 import { hashEphemeral, hashToken, newSessionToken, verifyPassword } from "@vita/core/crypto";
 import type { AdminRole } from "@vita/core/permissions";
@@ -18,7 +18,7 @@ export { can, OWNER_ONLY_CAPABILITIES, type AdminRole, type Capability } from "@
 
    Accounts are created by scripts/create-admin.ts. There is no self-registration. */
 
-const { adminUser, adminSession } = schema;
+const { adminUser, adminSession, loginAttempt } = schema;
 
 export const SESSION_COOKIE = "vl_admin";
 const SESSION_TTL_DAYS = 30;
@@ -31,27 +31,61 @@ export interface AdminIdentity {
   role: AdminRole;
 }
 
-/* In-memory login throttle. Good enough for a single instance and three users;
-   move to a `login_attempt` table if the app is ever horizontally scaled. */
-const attempts = new Map<string, { count: number; first: number }>();
+/* Троттлинг входа — в БД.
 
-function throttled(key: string): boolean {
-  const rec = attempts.get(key);
-  if (!rec) return false;
-  if (Date.now() - rec.first > ATTEMPT_WINDOW_MS) {
-    attempts.delete(key);
-    return false;
-  }
-  return rec.count >= MAX_ATTEMPTS;
+   Раньше счётчик жил в `Map` внутри процесса. На Vercel это не ограничивало
+   ничего: каждый холодный старт даёт функции пустую карту, и перебор просто
+   раскладывался по инстансам. Комментарий на месте прежнего кода честно
+   предупреждал «move to a login_attempt table if horizontally scaled» —
+   ровно это и произошло при переезде на serverless.
+
+   Два лимита. Основной — по ПАРЕ (логин, IP): если считать только по логину,
+   любой желающий заблокирует чужую учётку пятью неверными паролями с улицы.
+   Второй, более щедрый, — по одному IP: он ловит перебор многих логинов с
+   одного хоста, который парный счётчик пропустил бы.
+
+   Цена — два запроса на попытку входа. На трёх пользователях это бесплатно. */
+const MAX_ATTEMPTS_PER_IP = 20;
+
+/* Подставной хеш для случая «такого логина нет».
+
+   Важна ДЛИНА: `verifyPassword` берёт keylen из самой строки, и прежняя
+   заглушка (`…$AAAA`) заставляла scrypt посчитать 3 байта вместо 64. Проверка
+   несуществующего пользователя выходила заметно дешевле настоящей, и по времени
+   ответа можно было перебрать, какие логины существуют, — ровно то, что этот
+   приём должен был предотвращать.
+
+   Это честный scrypt-хеш от случайной строки: подобрать к нему пароль нельзя,
+   а стоит он столько же, сколько реальный. */
+const DUMMY_HASH =
+  "scrypt$16384$8$1$B3PiCRxnsMQEtafVXx6qVg==$FK0vUWrCNkC+ZXzc7YoEW4nL5jLHSg0At42JmDN9PwDUDbpNWLw8w5nv8OWZ75D4ZGxLcN2di6bLE3Jlp1w7MQ==";
+
+async function throttled(usernameKey: string, ipHash: string): Promise<boolean> {
+  const since = new Date(Date.now() - ATTEMPT_WINDOW_MS);
+
+  const [pair] = await db()
+    .select({ value: count() })
+    .from(loginAttempt)
+    .where(
+      and(
+        eq(loginAttempt.usernameKey, usernameKey),
+        eq(loginAttempt.ipHash, ipHash),
+        gt(loginAttempt.at, since),
+      ),
+    );
+  if ((pair?.value ?? 0) >= MAX_ATTEMPTS) return true;
+
+  const [byIp] = await db()
+    .select({ value: count() })
+    .from(loginAttempt)
+    .where(and(eq(loginAttempt.ipHash, ipHash), gt(loginAttempt.at, since)));
+  return (byIp?.value ?? 0) >= MAX_ATTEMPTS_PER_IP;
 }
 
-function recordFailure(key: string): void {
-  const rec = attempts.get(key);
-  if (!rec || Date.now() - rec.first > ATTEMPT_WINDOW_MS) {
-    attempts.set(key, { count: 1, first: Date.now() });
-  } else {
-    rec.count += 1;
-  }
+async function recordFailure(usernameKey: string, ipHash: string): Promise<void> {
+  await db().insert(loginAttempt).values({ usernameKey, ipHash });
+  // Оппортунистическая чистка — тем же приёмом, что и для протухших сессий.
+  await db().delete(loginAttempt).where(lt(loginAttempt.at, new Date(Date.now() - ATTEMPT_WINDOW_MS * 4)));
 }
 
 async function clientIpHash(): Promise<string> {
@@ -68,7 +102,8 @@ export type LoginResult =
     reported identically so the form cannot be used to enumerate accounts. */
 export async function login(username: string, password: string): Promise<LoginResult> {
   const key = username.trim().toLowerCase();
-  if (throttled(key)) return { ok: false, reason: "throttled" };
+  const ipHash = await clientIpHash();
+  if (await throttled(key, ipHash)) return { ok: false, reason: "throttled" };
 
   const [user] = await db()
     .select()
@@ -78,15 +113,22 @@ export async function login(username: string, password: string): Promise<LoginRe
 
   // Verify against a dummy hash when the user is missing so both paths cost
   // roughly the same and the response time does not leak existence.
-  const stored = user?.passwordHash ?? "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAA";
+  const stored = user?.passwordHash ?? DUMMY_HASH;
   const valid = await verifyPassword(password, stored);
 
-  if (!user || !valid) {
-    recordFailure(key);
+  /* Отключённая учётка ведёт себя как несуществующая — тот же ответ, тот же
+     счётчик. Сообщать «вас отключили» на форме входа незачем: это подсказка
+     тому, кто подбирает. */
+  if (!user || !valid || user.disabledAt) {
+    await recordFailure(key, ipHash);
     return { ok: false, reason: "invalid" };
   }
 
-  attempts.delete(key);
+  // Успешный вход обнуляет счётчик этой пары — иначе несколько опечаток подряд
+  // продолжали бы висеть и мешать следующему входу.
+  await db()
+    .delete(loginAttempt)
+    .where(and(eq(loginAttempt.usernameKey, key), eq(loginAttempt.ipHash, ipHash)));
 
   const token = newSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
@@ -95,7 +137,7 @@ export async function login(username: string, password: string): Promise<LoginRe
     userId: user.id,
     tokenHash: hashToken(token),
     expiresAt,
-    ipHash: await clientIpHash(),
+    ipHash,
   });
 
   await db().update(adminUser).set({ lastLoginAt: new Date() }).where(eq(adminUser.id, user.id));
@@ -133,7 +175,16 @@ export async function currentAdmin(): Promise<AdminIdentity | null> {
       })
       .from(adminSession)
       .innerJoin(adminUser, eq(adminUser.id, adminSession.userId))
-      .where(and(eq(adminSession.tokenHash, hashToken(token)), gt(adminSession.expiresAt, new Date())))
+      .where(
+        and(
+          eq(adminSession.tokenHash, hashToken(token)),
+          gt(adminSession.expiresAt, new Date()),
+          /* Отключённый администратор вылетает на СЛЕДУЮЩЕМ же запросе, даже
+             если его кука ещё жива. Без этого условия отключение означало бы
+             «не сможет войти заново», а не «больше не имеет доступа». */
+          isNull(adminUser.disabledAt),
+        ),
+      )
       .limit(1);
     return row ?? null;
   } catch {

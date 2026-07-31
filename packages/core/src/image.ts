@@ -24,6 +24,17 @@ export interface ProcessedPhoto {
 }
 
 /**
+ * Что за файл на самом деле — по сигнатуре, а не по заявленному MIME-типу.
+ *
+ * `File.type` в браузере проставляет сам браузер, и в подделанном запросе там
+ * может стоять что угодно. Единственный авторитет — содержимое.
+ */
+export async function readFormat(input: Buffer): Promise<{ format?: string }> {
+  const { format } = await sharp(input, { failOn: "error" }).metadata();
+  return { format };
+}
+
+/**
  * Приводит произвольный снимок к паре WebP: большой и миниатюра.
  *
  * `.rotate()` без аргументов применяет EXIF-ориентацию — без него портретные

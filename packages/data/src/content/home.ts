@@ -43,6 +43,12 @@ export const homeCollections: HomeCollection[] = [
    surface only. */
 export const HOME_PHONE = "77079961717";
 
+/** Карточка склада в 2ГИС — по ней открывается адрес из подвала.
+    2ГИС, а не Google Maps: в Казахстане маршруты строят в нём, и карточка
+    сразу отдаёт телефон, часы и проезд. Ссылка ведёт на конкретный geo-объект,
+    поэтому при переезде её меняют вместе с текстом адреса в локалях. */
+export const MAP_URL = "https://2gis.kz/shymkent/geo/22659371323306831";
+
 /** Hits row: badge hit/new first, then fill to `count` with in-stock items. */
 export function getHomeHits(count = 8): CatalogItem[] {
   const featured = catalogItems.filter((it) => it.badge === "hit" || it.badge === "new");

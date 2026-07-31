@@ -14,6 +14,7 @@
     "./image": "./src/image.ts",
     "./img": "./src/img.ts",
     "./order/consent": "./src/order/consent.ts",
+    "./order/labels": "./src/order/labels.ts",
     "./order/ref": "./src/order/ref.ts",
     "./permissions": "./src/permissions.ts",
     "./phone-kz": "./src/phone-kz.ts",

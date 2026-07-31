@@ -9,10 +9,17 @@ import { groupDigits } from "@vita/core/format";
    contract. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID (a group works, and is
    the easiest way to reach several people at once).
 
-   The admin has no orders screen in this version, so the message carries the
-   full order — including the customer's name and phone, which is the whole
-   point of the notification. Revisit that once /admin/orders exists: the
-   message can then shrink to a link. */
+   Пересмотрено, как и обещал прежний комментарий. Раньше сообщение несло имя,
+   телефон, адрес и комментарий покупателя — потому что экрана заказов не
+   существовало и увидеть их было больше негде. Теперь он есть (`/orders` в
+   apps/admin), и уведомление сокращено до номера, суммы и ссылки.
+
+   Это не косметика: Telegram — чужой сервис вне Казахстана, а закон требует
+   хранить персональные данные граждан РК на серверах в РК. Держать их ещё и в
+   переписке мессенджера — лишняя копия там, где её никто не контролирует и
+   откуда её нельзя удалить. Номера заказа достаточно, чтобы открыть карточку.
+
+   НЕ добавляй сюда имя и телефон обратно. */
 
 export interface NotifyPayload {
   refCode: string;
@@ -40,20 +47,18 @@ function buildMessage(o: NotifyPayload): string {
   const lines = [
     `🧾 Новый заказ ${o.refCode}`,
     "",
-    ...o.items.map((i) => `• ${i.name} (${i.sku}) — ${i.qty} × ${groupDigits(i.unitPriceKzt)} ₸`),
-    "",
-    `Товары: ${groupDigits(o.totalKzt - o.deliveryKzt)} ₸`,
-    `Доставка: ${o.deliveryKzt === 0 ? "бесплатно" : `${groupDigits(o.deliveryKzt)} ₸`}`,
+    `Позиций: ${o.items.length}`,
     `Итого: ${groupDigits(o.totalKzt)} ₸`,
-    "",
-    `Клиент: ${o.name}`,
-    `Телефон: ${formatKzPhone(o.phoneE164)}`,
     `Способ: ${DELIVERY_LABEL[o.deliveryMethod]} · ${PAYMENT_LABEL[o.paymentMethod]}`,
   ];
 
+  // Город — не персональные данные и помогает прикинуть доставку с телефона.
   if (o.city) lines.push(`Город: ${o.city}`);
-  if (o.address) lines.push(`Адрес: ${o.address}`);
-  if (o.comment) lines.push(`Комментарий: ${o.comment}`);
+
+  /* Имя, телефон, адрес и комментарий сюда НЕ попадают: они есть в карточке
+     заказа, доступ к которой ограничен и записывается в журнал. */
+  const base = process.env.ADMIN_ORDER_URL;
+  lines.push("", base ? `Открыть: ${base}/orders` : "Открыть заказ в админке");
 
   return lines.join("\n");
 }
