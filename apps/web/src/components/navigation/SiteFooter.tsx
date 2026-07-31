@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
+import { MAP_URL } from "@vita/data/content/home";
 
 /* SiteFooter — graphite footer matching the macket: trust row, four columns
    (about / catalog / buyers / contacts), payment bar. Monobrand copy. */
@@ -79,13 +80,19 @@ export async function SiteFooter() {
             </li>
             <li className="flex items-center gap-2">
               <Icon name="mail" size={16} color="var(--brass-text-dark)" />
-              {t("email")}
+              {/* Почта была единственной строкой в списке без действия — рядом
+                  с кликабельными телефоном и адресом это читалось как опечатка. */}
+              <a href={`mailto:${t("email")}`} style={linkStyle}>
+                {t("email")}
+              </a>
             </li>
             <li className="flex items-start gap-2">
               <span style={{ marginTop: 2 }}>
                 <Icon name="map-pin" size={16} color="var(--brass-text-dark)" />
               </span>
-              {t("address")}
+              <a href={MAP_URL} target="_blank" rel="noopener noreferrer" style={linkStyle}>
+                {t("address")}
+              </a>
             </li>
           </ul>
         </div>

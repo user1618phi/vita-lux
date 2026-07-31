@@ -328,7 +328,37 @@ export const adminUser = pgTable("admin_user", {
   passwordHash: text("password_hash").notNull(), // scrypt, node:crypto
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  /* Отключение вместо удаления. `audit_log.admin_user_id` ссылается сюда через
+     `on delete set null`: удалив администратора, мы обезличили бы всю его
+     историю действий — а журнал нужен именно затем, чтобы знать, кто что
+     сделал. Отключённый не проходит `currentAdmin()` со следующего запроса. */
+  disabledAt: timestamp("disabled_at", { withTimezone: true }),
 });
+
+/* Попытки входа — в базе, а не в памяти процесса.
+
+   Прежний счётчик жил в `const attempts = new Map()` внутри auth.ts. На Vercel
+   каждый холодный старт даёт функции чистую память, поэтому «5 попыток за 15
+   минут» не ограничивали ничего: перебор просто попадал на разные инстансы.
+
+   Ключей два, и это не избыточность:
+     - пара (логин, IP) — основной лимит. Именно пара, а не логин: иначе любой
+       желающий блокирует чужую учётку пятью неверными паролями с улицы;
+     - один IP — более щедрый бюджет, гасит перебор многих логинов с одного
+       хоста, который парный лимит не заметил бы. */
+export const loginAttempt = pgTable(
+  "login_attempt",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    usernameKey: text("username_key").notNull(), // нормализованный логин
+    ipHash: text("ip_hash").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("login_attempt_user_ip_idx").on(t.usernameKey, t.ipHash, t.at),
+    index("login_attempt_ip_idx").on(t.ipHash, t.at),
+  ],
+);
 
 export const adminSession = pgTable(
   "admin_session",

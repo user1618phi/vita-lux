@@ -40,6 +40,17 @@ export function BulkForm({ rows }: { rows: AdminProductRow[] }) {
         {state?.changed === 0 ? "Изменений не было." : `Сохранено изменений: ${state?.changed}.`}
       </SaveNotice>
 
+      {editable.length === 0 ? (
+        /* Пустая категория раньше рисовала пустой список и кнопку «Сохранить»,
+           которая отвечала «Нечего сохранять» — то есть выглядела сломанной. */
+        <p
+          className="mt-6 text-center font-sans"
+          style={{ fontSize: "var(--text-body-s)", color: "var(--text-secondary)" }}
+        >
+          В этой категории нет товаров с ценой.
+        </p>
+      ) : null}
+
       <ul className="m-0 p-0 list-none flex flex-col gap-2">
         {editable.map((r) => (
           <li
@@ -52,7 +63,7 @@ export function BulkForm({ rows }: { rows: AdminProductRow[] }) {
             <div className="font-sans text-[length:var(--text-body-s)] text-ink truncate">{r.name}</div>
             <div className="mt-0.5 vl-mono text-[length:var(--text-caption)] text-slate">{r.sku ?? "—"}</div>
 
-            <div className="mt-2.5 grid grid-cols-[1fr_auto] gap-2 items-center">
+            <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 sm:items-center">
               <label className="block">
                 <span className="sr-only">Цена, ₸</span>
                 <input
@@ -83,18 +94,22 @@ export function BulkForm({ rows }: { rows: AdminProductRow[] }) {
         ))}
       </ul>
 
-      {/* Sticky so the button is reachable after scrolling a long list. */}
-      <div
-        className="sticky bottom-0 mt-4 py-3"
-        style={{ background: "var(--surface-page)", borderTop: "0.5px solid var(--border)" }}
-      >
-        <Button type="submit" pending={pending} pendingLabel="Сохраняем…">
-          Сохранить
-        </Button>
-        <p className="m-0 mt-2 text-center font-sans text-[length:var(--text-caption)] text-slate">
-          Пустая цена = «Цена по запросу». Товар нельзя будет добавить в корзину.
-        </p>
-      </div>
+      {/* Sticky so the button is reachable after scrolling a long list.
+          Кнопки нет, когда сохранять нечего: раньше она висела над пустым
+          списком и на нажатие отвечала «Нечего сохранять». */}
+      {editable.length > 0 ? (
+        <div
+          className="sticky bottom-0 mt-4 py-3"
+          style={{ background: "var(--surface-page)", borderTop: "0.5px solid var(--border)" }}
+        >
+          <Button type="submit" pending={pending} pendingLabel="Сохраняем…">
+            Сохранить
+          </Button>
+          <p className="m-0 mt-2 text-center font-sans text-[length:var(--text-caption)] text-slate">
+            Пустая цена = «Цена по запросу». Товар нельзя будет добавить в корзину.
+          </p>
+        </div>
+      ) : null}
     </form>
   );
 }

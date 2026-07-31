@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { can, type AdminRole } from "@vita/core/permissions";
+import { ORDER_STATUS_LABEL, type OrderStatus } from "@vita/core/order/labels";
 import { ConfirmButtonClient } from "./ConfirmButton";
 
 /* Shared admin primitives. Deliberately plain: the storefront's design system
@@ -255,6 +256,29 @@ const STOCK_STYLE: Record<string, { bg: string; color: string; label: string }> 
   out: { bg: "var(--tint-danger)", color: "var(--state-danger)", label: "Нет" },
 };
 
+/* Цвет несёт смысл: «новый» просит внимания (латунь), «выполнен» спокоен
+   (зелёный), «отменён» приглушён. Подписи — из домена, чтобы не разойтись с
+   Telegram-уведомлением витрины. */
+const ORDER_STATUS_STYLE: Record<string, { bg: string; color: string }> = {
+  new: { bg: "var(--tint-brass)", color: "var(--brass-text)" },
+  confirmed: { bg: "var(--tint-success)", color: "var(--state-success)" },
+  shipped: { bg: "var(--tint-success)", color: "var(--state-success)" },
+  done: { bg: "var(--surface-control)", color: "var(--text-secondary)" },
+  cancelled: { bg: "var(--tint-danger)", color: "var(--state-danger)" },
+};
+
+export function OrderStatusChip({ status }: { status: string }) {
+  const s = ORDER_STATUS_STYLE[status] ?? ORDER_STATUS_STYLE.done;
+  return (
+    <span
+      className="inline-block rounded-sm px-2 py-0.5 font-sans"
+      style={{ fontSize: "var(--text-caption)", background: s.bg, color: s.color }}
+    >
+      {ORDER_STATUS_LABEL[status as OrderStatus] ?? status}
+    </span>
+  );
+}
+
 export function StockChip({ state }: { state: string | null }) {
   const s = STOCK_STYLE[state ?? "order"] ?? STOCK_STYLE.order;
   return (
@@ -286,9 +310,14 @@ export function AdminNav({
 }) {
   const tabs = (
     [
+      /* Заказы первыми: это ежедневная работа, а товары правят реже.
+         Видны обеим ролям — звонит покупателю именно менеджер. */
+      { key: "orders", href: "/orders", label: "Заказы" },
       { key: "products", href: "/products", label: "Товары" },
       { key: "bulk", href: "/bulk", label: "Цены и наличие" },
       { key: "settings", href: "/settings", label: "Настройки", capability: "settings" as const },
+      { key: "accounts", href: "/accounts", label: "Доступ", capability: "accounts" as const },
+      { key: "account", href: "/account", label: "Профиль" },
     ] as const
   ).filter((t) => !("capability" in t) || can(role, t.capability));
 

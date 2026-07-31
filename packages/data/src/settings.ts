@@ -39,7 +39,11 @@ const DEFAULTS: StoreSettings = {
   installmentEnabled: true,
 };
 
-const KEYS: Record<keyof StoreSettings, string> = {
+/* Экспортируется, чтобы админка валидировала запись по тому же списку, по
+   которому витрина читает. Раньше форма писала любой ключ вида `setting.*`, и
+   подделанный POST мог насыпать в таблицу произвольные строки; а ключи
+   `pricing.*` форма писала годами, притом что читателя у них не было. */
+export const SETTING_KEYS: Record<keyof StoreSettings, string> = {
   phonePrimary: "contact.phonePrimary",
   phoneSecondary: "contact.phoneSecondary",
   city: "contact.city",
@@ -58,7 +62,7 @@ async function load(): Promise<StoreSettings> {
     const byKey = new Map(rows.map((r) => [r.key, r.value]));
     const out = { ...DEFAULTS };
 
-    for (const [field, key] of Object.entries(KEYS) as [keyof StoreSettings, string][]) {
+    for (const [field, key] of Object.entries(SETTING_KEYS) as [keyof StoreSettings, string][]) {
       const raw = byKey.get(key);
       if (raw === undefined || raw === null || raw === "") continue;
 
