@@ -9,6 +9,16 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Пакеты воркспейса отдают исходный TypeScript, без шага сборки.
   transpilePackages: ["@vita/core", "@vita/data", "@vita/db", "@vita/i18n", "@vita/ui"],
+  experimental: {
+    /* Фото приходят Server Action'ом, а его тело по умолчанию ограничено 1 МБ —
+       снимок с телефона не пролезал, и падало это до входа в экшен, поэтому
+       собственная проверка размера внутри не срабатывала никогда.
+
+       4 МБ, а не 10: жёсткий потолок Vercel на тело запроса — 4.5 МБ, и
+       обещать больше нельзя. Достаточным это число делает сжатие в браузере
+       (apps/admin/src/lib/compress.ts) — на сервер уезжает 200-400 КБ. */
+    serverActions: { bodySizeLimit: "4mb" },
+  },
 };
 
 export default nextConfig;

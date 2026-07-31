@@ -20,7 +20,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: "/",
         // Private or worthless-to-index surfaces.
-        disallow: ["/admin", "/api", "/ru/order/", "/kk/order/", "/ru/cart", "/kk/cart", "/ru/checkout", "/kk/checkout"],
+        disallow: ["/api", "/ru/order/", "/kk/order/", "/ru/cart", "/kk/cart", "/ru/checkout", "/kk/checkout"],
       },
     ],
     sitemap: `${base}/sitemap.xml`,

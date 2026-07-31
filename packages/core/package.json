@@ -11,6 +11,7 @@
     "./crypto": "./src/crypto.ts",
     "./format": "./src/format.ts",
     "./icons": "./src/icons.ts",
+    "./image": "./src/image.ts",
     "./img": "./src/img.ts",
     "./order/consent": "./src/order/consent.ts",
     "./order/ref": "./src/order/ref.ts",
@@ -18,9 +19,13 @@
     "./phone-kz": "./src/phone-kz.ts",
     "./pricing": "./src/pricing.ts",
     "./site": "./src/site.ts",
-    "./stock": "./src/stock.ts"
+    "./stock": "./src/stock.ts",
+    "./storage": "./src/storage.ts"
   },
   "scripts": {
     "test": "node --test --experimental-strip-types \"src/**/*.test.ts\""
+  },
+  "peerDependencies": {
+    "sharp": "^0.35.3"
   }
 }

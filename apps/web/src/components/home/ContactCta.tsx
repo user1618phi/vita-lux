@@ -19,7 +19,7 @@ export async function ContactCta() {
           {t("contactSubtitle")}
         </p>
         <div className="mt-7 flex flex-col sm:flex-row justify-center gap-3">
-          <div className="w-full sm:w-auto">
+          <div className="w-full sm:w-auto" data-wa-cta>
             <WhatsAppAction label={t("contactWhatsApp")} phone={HOME_PHONE} message={t("waMessage", { site: SITE_DOMAIN })} variant="solid" size="lg" fullWidth />
           </div>
           <div className="w-full sm:w-auto">

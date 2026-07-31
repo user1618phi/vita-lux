@@ -4,14 +4,15 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./repo": "./src/repo/index.ts",
-    "./repo/types": "./src/repo/types.ts",
-    "./repo/db.source": "./src/repo/db.source.ts",
-    "./repo/mock.source": "./src/repo/mock.source.ts",
-    "./settings": "./src/settings.ts",
     "./content/catalog": "./src/content/catalog.ts",
     "./content/home": "./src/content/home.ts",
-    "./content/products": "./src/content/products.ts"
+    "./content/products": "./src/content/products.ts",
+    "./repo": "./src/repo/index.ts",
+    "./repo/db.source": "./src/repo/db.source.ts",
+    "./repo/mock.source": "./src/repo/mock.source.ts",
+    "./repo/tags": "./src/repo/tags.ts",
+    "./repo/types": "./src/repo/types.ts",
+    "./settings": "./src/settings.ts"
   },
   "dependencies": {
     "@vita/core": "workspace:*",

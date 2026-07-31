@@ -1,29 +1,46 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidateTag } from "next/cache";
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@vita/db/client";
 import { audit, can, currentAdmin, login, logout, type Capability } from "@/lib/auth";
-import { CATALOG_TAG, productTag } from "@vita/data/repo";
+import { CATALOG_TAG, SETTINGS_TAG, productTag } from "@vita/data/repo/tags";
+import { publish } from "@/lib/revalidate";
 
 /* Admin mutations.
 
-   Every write ends with revalidateTag. If the brother changes a price, reloads
-   the storefront and still sees the old number, he stops trusting the tool —
-   and that trust does not come back. */
+   Every write ends with publish(). If the brother changes a price, reloads the
+   storefront and still sees the old number, he stops trusting the tool — and
+   that trust does not come back.
+
+   Важно: `publish` — это НЕ локальный `revalidateTag`. Витрина живёт в другом
+   деплойменте Vercel, и сброс её кэша едет туда HTTP-запросом. Он может не
+   дойти, поэтому `publish` возвращает флаг, и экшены обязаны донести его до
+   формы: обещать «сайт обновлён», не проверив, — тот самый способ потерять
+   доверие, о котором абзац выше.
+
+   Теги импортируются из `@vita/data/repo/tags`, а НЕ из `@vita/data/repo`:
+   последний помечен server-only, тянет драйвер БД и мок-каталог и выполняет
+   `pickSource()` на уровне модуля. */
 
 const { product, productI18n, variant, price, inventory, setting } = schema;
 
 /* Explicit result shapes. Without them TypeScript narrows each action to
    whichever branch it happens to return, and useActionState rejects the
    mismatch at the call site. */
-export type ActionResult<T = Record<string, never>> = Partial<T> & { ok?: boolean; error?: string };
+export type ActionResult<T = Record<string, never>> = Partial<T> & {
+  ok?: boolean;
+  error?: string;
+  /* Дошёл ли сброс кэша до витрины. `undefined` — вопрос не поднимался
+     (например, ошибка валидации). Формы обязаны различать три состояния, а не
+     печатать «сайт обновится сразу» безусловно. */
+  published?: boolean;
+};
 
-function refreshCatalog(handle?: string) {
-  revalidateTag(CATALOG_TAG);
-  if (handle) revalidateTag(productTag(handle));
+/** Сбросить каталог целиком и, если известны, карточки конкретных товаров. */
+function publishCatalog(...handles: (string | null | undefined)[]) {
+  return publish([CATALOG_TAG, ...handles.filter(Boolean).map((h) => productTag(h as string))]);
 }
 
 async function requireAdmin() {
@@ -114,6 +131,7 @@ export async function bulkUpdateAction(
   if (!updates.length) return { error: "Нечего сохранять" };
 
   let changed = 0;
+  const touched: string[] = [];
   for (const u of updates) {
     const [current] = await db()
       .select({ retailKzt: price.retailKzt })
@@ -156,12 +174,14 @@ export async function bulkUpdateAction(
     }
 
     await audit(admin.id, "variant", u.variantId, "bulk-update", { price: current?.retailKzt ?? null, stock: stockRow?.state ?? null }, { price: u.retail, stock: u.stock });
-    refreshCatalog(u.handle);
+    touched.push(u.handle);
     changed += 1;
   }
 
-  refreshCatalog();
-  return { ok: true, changed };
+  /* Одна публикация в конце, а не по вебхуку на каждую строку внутри цикла:
+     массовая правка на 200 SKU дала бы 200 HTTP-запросов к витрине. */
+  const published = await publishCatalog(...touched);
+  return { ok: true, changed, published };
 }
 
 const productSchema = z.object({
@@ -230,6 +250,16 @@ export async function saveProductAction(
   if (clash && clash.id !== productId) {
     return { error: `Адрес "${v.handle}" уже занят другим товаром` };
   }
+
+  /* Прежний хендл нужен для ревалидации.
+
+     Поле `handle` редактируемое, и это адрес товара на витрине. Если
+     сбросить только НОВЫЙ тег, страница по старому адресу останется в кэше со
+     старыми данными и продолжит отдавать 200 — то есть в поиске и по чужим
+     ссылкам будет висеть товар, которого уже нет по этому пути. */
+  const [previous] = productId
+    ? await db().select({ handle: product.handle }).from(product).where(eq(product.id, productId)).limit(1)
+    : [undefined];
 
   const [brandRow] = await db()
     .select({ id: schema.brand.id })
@@ -304,7 +334,8 @@ export async function saveProductAction(
     });
 
   await audit(admin.id, "product", id, productId ? "update" : "create", null, values);
-  refreshCatalog(v.handle);
+  // Оба хендла: при переименовании старый адрес обязан выпасть из кэша витрины.
+  await publishCatalog(v.handle, previous?.handle);
 
   redirect("/products");
 }
@@ -322,7 +353,7 @@ export async function toggleVisibilityAction(formData: FormData) {
   const next = row.status === "active" ? "draft" : "active";
   await db().update(product).set({ status: next, updatedAt: new Date() }).where(eq(product.id, id));
   await audit(admin.id, "product", id, "visibility", { status: row.status }, { status: next });
-  refreshCatalog(handle);
+  await publishCatalog(handle);
 }
 
 /* ── settings ──────────────────────────────────────────────────────────── */
@@ -349,8 +380,16 @@ export async function saveSettingsAction(
     saved += 1;
   }
 
-  refreshCatalog();
-  return { ok: true, saved };
+  /* SETTINGS_TAG, а не каталог.
+
+     До этой правки здесь стоял `refreshCatalog()`, то есть сбрасывался кэш
+     каталога — а настройки читаются через СВОЙ `unstable_cache` с тегом
+     `settings` (packages/data/src/settings.ts). Тег этот не сбрасывался нигде
+     во всём репозитории, поэтому смена телефона, города, адреса, порога
+     бесплатной доставки и срока рассрочки не доезжала до витрины никогда, а
+     форма при этом писала «Сохранено. Сайт обновится сразу». */
+  const published = await publish([SETTINGS_TAG]);
+  return { ok: true, saved, published };
 }
 
 /* ── read helpers for the admin screens ────────────────────────────────── */

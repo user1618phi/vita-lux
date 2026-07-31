@@ -8,8 +8,8 @@ export default async function LoginPage() {
   return (
     <main className="min-h-screen grid place-items-center px-4">
       <div className="w-full max-w-[380px]">
-        <h1 className="m-0 mb-1 font-display text-[26px] text-ink">Vita Lux</h1>
-        <p className="m-0 mb-7 font-sans text-[14px] text-slate">Панель управления каталогом</p>
+        <h1 className="m-0 mb-1 font-display text-[length:var(--text-title)] text-ink">Vita Lux</h1>
+        <p className="m-0 mb-7 font-sans text-[length:var(--text-body-s)] text-slate">Панель управления каталогом</p>
         <LoginForm />
       </div>
     </main>

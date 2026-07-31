@@ -1,14 +1,14 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, max } from "drizzle-orm";
-import sharp from "sharp";
+import { processPhoto } from "@vita/core/image";
 import { db, schema } from "@vita/db/client";
 import { audit, currentAdmin } from "@/lib/auth";
-import { storage } from "@/lib/storage";
-import { CATALOG_TAG, productTag } from "@vita/data/repo";
+import { storage } from "@vita/core/storage";
+import { CATALOG_TAG, productTag } from "@vita/data/repo/tags";
+import { publish } from "@/lib/revalidate";
 
 /* Photo upload.
 
@@ -25,7 +25,7 @@ const THUMB_PX = 400;
 export async function uploadPhotosAction(
   _prev: unknown,
   formData: FormData,
-): Promise<{ ok?: boolean; uploaded?: number; error?: string }> {
+): Promise<{ ok?: boolean; uploaded?: number; error?: string; published?: boolean }> {
   const admin = await currentAdmin();
   if (!admin) redirect("/login");
 
@@ -55,18 +55,14 @@ export async function uploadPhotosAction(
 
     const input = Buffer.from(await file.arrayBuffer());
 
+    /* Конвейер общий с scripts/mirror-media.ts — @vita/core/image. Две копии
+       означали бы два разных представления о том, каким получится фото. */
     let large: Buffer;
     let thumb: Buffer;
     let width: number;
     let height: number;
     try {
-      const pipeline = sharp(input, { failOn: "error" }).rotate(); // honour EXIF orientation
-      const meta = await pipeline.metadata();
-      width = Math.min(meta.width ?? LARGE_PX, LARGE_PX);
-      height = meta.height ?? LARGE_PX;
-
-      large = await sharp(input).rotate().resize({ width: LARGE_PX, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
-      thumb = await sharp(input).rotate().resize({ width: THUMB_PX, withoutEnlargement: true }).webp({ quality: 78 }).toBuffer();
+      ({ large, thumb, width, height } = await processPhoto(input));
     } catch {
       return { error: `Не удалось обработать «${file.name}». Попробуйте JPEG или PNG.` };
     }
@@ -92,10 +88,9 @@ export async function uploadPhotosAction(
   }
 
   await audit(admin.id, "media", productId, "upload", null, { count: uploaded });
-  revalidateTag(CATALOG_TAG);
-  if (handle) revalidateTag(productTag(handle));
+  const published = await publish([CATALOG_TAG, ...(handle ? [productTag(handle)] : [])]);
 
-  return { ok: true, uploaded };
+  return { ok: true, uploaded, published };
 }
 
 export async function deletePhotoAction(formData: FormData) {
@@ -120,8 +115,7 @@ export async function deletePhotoAction(formData: FormData) {
   await store.remove(row.path.replace(/\.webp$/, "-thumb.webp"));
 
   await audit(admin.id, "media", mediaId, "delete", row, null);
-  revalidateTag(CATALOG_TAG);
-  if (handle) revalidateTag(productTag(handle));
+  await publish([CATALOG_TAG, ...(handle ? [productTag(handle)] : [])]);
 }
 
 /** Move a photo to position 0 — that is what the catalog card shows. */
@@ -146,6 +140,5 @@ export async function makeCoverAction(formData: FormData) {
   }
 
   await audit(admin.id, "media", mediaId, "make-cover", null, null);
-  revalidateTag(CATALOG_TAG);
-  if (handle) revalidateTag(productTag(handle));
+  await publish([CATALOG_TAG, ...(handle ? [productTag(handle)] : [])]);
 }
