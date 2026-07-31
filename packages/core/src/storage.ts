@@ -1,6 +1,15 @@
-import "server-only";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+
+/* Здесь НЕТ `import "server-only"`, и это осознанно.
+
+   Пакет `server-only` бросает при импорте вне react-server — то есть из
+   обычного Node-скрипта тоже. А этот модуль нужен и серверному экшену админки,
+   и `scripts/mirror-media.ts`; с прежним импортом скрипт падал бы на загрузке.
+
+   Защита от утечки в браузер никуда не делась: модуль тянет `node:fs/promises`
+   и читает `SUPABASE_SERVICE_ROLE_KEY` из окружения — Next оборвёт сборку,
+   если такой импорт окажется в клиентском компоненте. */
 
 /* Object storage for product photos.
 

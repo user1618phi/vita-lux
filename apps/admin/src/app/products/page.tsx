@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentAdmin } from "@/lib/auth";
 import { listAdminProducts, logoutAction } from "../actions";
-import { AdminNav, StockChip, inputStyle } from "../ui";
+import { AdminNav, ErrorBox, PageShell, StockChip, inputStyle } from "../ui";
 import { groupDigits } from "@vita/core/format";
 
 export const dynamic = "force-dynamic";
@@ -19,55 +19,48 @@ export default async function ProductsPage({
   const rows = await listAdminProducts(q);
 
   return (
-    <main className="mx-auto w-full max-w-[900px] px-4 py-5 pb-24">
-      <header className="flex items-center justify-between gap-3 mb-4">
-        <div>
-          <h1 className="m-0 font-display text-[22px] text-ink">Товары</h1>
-          <p className="m-0 mt-0.5 font-sans text-[13px] text-slate">
-            {admin.username} · {admin.role === "owner" ? "владелец" : "менеджер"}
-          </p>
-        </div>
-        <form action={logoutAction}>
-          <button
-            type="submit"
-            className="rounded-md px-3 font-sans text-[13px]"
-            style={{ height: 40, background: "transparent", border: "1px solid var(--border-control)", color: "var(--slate)", cursor: "pointer" }}
-          >
-            Выйти
-          </button>
-        </form>
-      </header>
+    <PageShell
+      title="Товары"
+      width="wide"
+      nav={
+        <AdminNav
+          current="products"
+          role={admin.role}
+          username={admin.username}
+          logoutAction={logoutAction}
+        />
+      }
+    >
+      {/* ErrorBox из ui, а не рукописная копия того же блока. */}
+      <ErrorBox>{denied ? "Настройки доступны только владельцу." : null}</ErrorBox>
 
-      <AdminNav current="products" role={admin.role} />
-
-      {denied ? (
-        <p
-          role="alert"
-          className="mt-4 mb-0 rounded-md px-3 py-2.5 font-sans text-[14px]"
-          style={{ background: "var(--tint-danger)", color: "var(--state-danger)" }}
-        >
-          Настройки доступны только владельцу.
-        </p>
-      ) : null}
-
-      <form className="mt-4 flex gap-2">
+      <form className="flex flex-wrap gap-2">
         <input
           name="q"
           defaultValue={q ?? ""}
           placeholder="Поиск по названию или артикулу"
-          style={inputStyle}
+          style={{ ...inputStyle, flex: "1 1 200px", width: "auto" }}
         />
         <Link
           href="/products/new"
-          className="flex-none grid place-items-center rounded-md px-4 font-sans text-[15px]"
-          style={{ height: 48, background: "var(--ink)", color: "var(--glaze)", textDecoration: "none" }}
+          className="flex-none grid place-items-center rounded-md px-4 font-sans"
+          style={{
+            height: 48,
+            fontSize: "var(--text-body-s)",
+            background: "var(--action-primary-bg)",
+            color: "var(--action-primary-text)",
+            textDecoration: "none",
+          }}
         >
           + Товар
         </Link>
       </form>
 
       {rows.length === 0 ? (
-        <p className="mt-8 text-center font-sans text-[15px] text-slate">
+        <p
+          className="mt-8 text-center font-sans"
+          style={{ fontSize: "var(--text-body-s)", color: "var(--text-secondary)" }}
+        >
           {q ? "Ничего не найдено" : "Товаров пока нет — добавьте первый"}
         </p>
       ) : (
@@ -92,20 +85,20 @@ export default async function ProductsPage({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={r.image} alt="" className="vl-photo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   ) : (
-                    <span className="font-sans text-[11px] text-slate">нет фото</span>
+                    <span className="font-sans text-[length:var(--text-micro)] text-slate">нет фото</span>
                   )}
                 </span>
 
                 <span className="flex-1 min-w-0">
-                  <span className="block truncate font-sans text-[15px] text-ink">{r.name}</span>
-                  <span className="block mt-0.5 vl-mono text-[12px] text-slate">
+                  <span className="block truncate font-sans text-[length:var(--text-body-s)] text-ink">{r.name}</span>
+                  <span className="block mt-0.5 vl-mono text-[length:var(--text-caption)] text-slate">
                     {r.sku ?? "—"} · {r.categorySlug}
                     {r.status !== "active" ? " · скрыт" : ""}
                   </span>
                 </span>
 
                 <span className="flex-none text-right">
-                  <span className="block vl-mono text-[15px] text-ink">
+                  <span className="block vl-mono text-[length:var(--text-body-s)] text-ink">
                     {r.retailKzt === null ? "по запросу" : `${groupDigits(r.retailKzt)} ₸`}
                   </span>
                   <span className="block mt-1">
@@ -117,6 +110,6 @@ export default async function ProductsPage({
           ))}
         </ul>
       )}
-    </main>
+    </PageShell>
   );
 }

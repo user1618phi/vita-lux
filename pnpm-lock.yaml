@@ -32,6 +32,12 @@ importers:
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(postgres@3.4.9)
+      postgres:
+        specifier: ^3.4.9
+        version: 3.4.9
+      sharp:
+        specifier: ^0.35.3
+        version: 0.35.3(@types/node@22.10.7)
       tsx:
         specifier: ^4.23.1
         version: 4.23.1
@@ -167,7 +173,11 @@ importers:
         specifier: 5.7.3
         version: 5.7.3
 
-  packages/core: {}
+  packages/core:
+    dependencies:
+      sharp:
+        specifier: ^0.35.3
+        version: 0.35.3(@types/node@22.10.7)
 
   packages/data:
     dependencies:

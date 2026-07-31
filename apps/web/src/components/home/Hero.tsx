@@ -133,7 +133,7 @@ export function Hero() {
                 </Button>
               </Link>
             </div>
-            <div className="w-full sm:w-auto">
+            <div className="w-full sm:w-auto" data-wa-cta>
               <WhatsAppAction
                 label={t("heroWhatsApp")}
                 phone={HOME_PHONE}

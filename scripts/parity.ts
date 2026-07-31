@@ -12,6 +12,16 @@ import type { CatalogEntry } from "@vita/data/repo/types";
 
 const LOCALES = ["ru", "kk"] as const;
 
+/* --ignore-media: не сравнивать URL картинок.
+
+   Пока сид клал в БД те же самые ссылки на Unsplash, что отдаёт мок, они были
+   сравнимы посимвольно. После `pnpm db:media` картинки лежат в нашем бакете, и
+   URL расходятся ЗАКОНОМЕРНО — это и есть цель зеркалирования, а не поломка.
+
+   Флаг выключает сравнение только адресов. Количество фото в галерее
+   проверяется всегда: потерянный при переносе снимок — настоящая ошибка. */
+const IGNORE_MEDIA = process.argv.includes("--ignore-media");
+
 /* Fields that must match exactly. `gallery` is compared separately because
    ordering matters but the mock's Unsplash URLs are the same strings the seed
    inserted, so they are directly comparable. */
@@ -50,7 +60,7 @@ function compare(label: string, a: CatalogEntry | null, b: CatalogEntry | null) 
   if (ag.length !== bg.length) {
     problems.push(`${label}.gallery: mock has ${ag.length} photos, db has ${bg.length}`);
   }
-  if ((a.image ?? null) !== (b.image ?? null)) {
+  if (!IGNORE_MEDIA && (a.image ?? null) !== (b.image ?? null)) {
     problems.push(`${label}.image: mock=${a.image ?? null} db=${b.image ?? null}`);
   }
 }

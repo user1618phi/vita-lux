@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Icon } from "@/components/ui/Icon";
@@ -8,6 +8,7 @@ import { Logo } from "@/components/ui/Logo";
 import { useCart } from "@/context/CartContext";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { useHideOnScrollDown } from "./useHideOnScrollDown";
 
 function CountBadge({ children }: { children: ReactNode }) {
   return (
@@ -58,6 +59,30 @@ export function SiteHeader() {
   const tn = useTranslations("Nav");
   const { count, favCount, hydrated } = useCart();
   const [open, setOpen] = useState(false);
+  /* Полоса с телефоном уезжает при скролле вниз и возвращается при движении
+     вверх — тем же жестом, что и нижняя панель вкладок. Иначе на 390px липкая
+     шапка занимала бы 108px постоянно.
+
+     Прячем сдвигом всей шапки, а НЕ схлопыванием высоты полосы: полоса лежит
+     в потоке, и её схлопывание поднимает вслед за собой всю страницу. Скролл
+     от этого «прыгает», обработчик видит собственный сдвиг как жест
+     пользователя и полоса начинает мигать. Сдвиг ничего в потоке не двигает. */
+  const compact = useHideOnScrollDown();
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [stripH, setStripH] = useState(0);
+
+  /* Высоту меряем, а не пишем константой: на десктопе полоса скрыта
+     (`md:hidden`), её высота 0 — и сдвиг сам собой выключается, без дублирования
+     контрольной точки 768px в JS. */
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    const sync = () => setStripH(el.offsetHeight);
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -74,7 +99,15 @@ export function SiteHeader() {
   const phoneHref = `tel:+${t("phone").replace(/\D/g, "")}`;
 
   return (
-    <header className="sticky top-0 z-40" style={{ background: "var(--white)", borderBottom: "1px solid var(--line)" }}>
+    <header
+      className="sticky top-0 z-40"
+      style={{
+        background: "var(--white)",
+        borderBottom: "1px solid var(--line)",
+        transform: compact ? `translateY(-${stripH}px)` : "translateY(0)",
+        transition: "transform 220ms ease-out",
+      }}
+    >
       {/* Utility bar — desktop */}
       <div className="hidden md:block" style={{ borderBottom: "0.5px solid var(--line)" }}>
         <div
@@ -92,6 +125,37 @@ export function SiteHeader() {
               {t("phone")}
             </a>
           </div>
+        </div>
+      </div>
+
+      {/* Полоса контактов — мобильная. Телефон здесь, а не в строке с логотипом:
+          на 390px там остаётся 51px свободного места, номер туда не помещается.
+          Высота 44px — это и полноценная цель для пальца, и ровно столько,
+          сколько занимает та же полоса на десктопе. */}
+      <div ref={stripRef} className="md:hidden" style={{ borderBottom: "0.5px solid var(--line)" }}>
+        <div className="mx-auto max-w-[1280px] px-4 flex items-center justify-between gap-3" style={{ height: 44 }}>
+          {/* Обещание слева, действие справа — как в десктопной полосе.
+              min-w-0 + truncate: казахский текст на 10–20% длиннее русского и
+              без обрезки вытолкнул бы номер за край. */}
+          <span className="min-w-0 truncate flex items-center gap-1.5" style={{ fontSize: 12, color: "var(--slate)" }}>
+            <Icon name="map-pin" size={14} color="var(--brass)" />
+            <span className="truncate">{t("deliveryBar")}</span>
+          </span>
+          <a
+            href={phoneHref}
+            className="flex-none flex items-center gap-1.5"
+            style={{
+              height: 44,
+              fontSize: 15,
+              fontWeight: 500,
+              color: "var(--ink)",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <Icon name="phone" size={16} color="var(--brass)" />
+            {t("phone")}
+          </a>
         </div>
       </div>
 

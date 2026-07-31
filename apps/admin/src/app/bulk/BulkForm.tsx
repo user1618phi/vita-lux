@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { bulkUpdateAction, type AdminProductRow } from "../actions";
-import { ErrorBox, OkBox } from "../ui";
+import { Button, ErrorBox, SaveNotice, inputStyle } from "../ui";
 
 /* The screen that decides whether a real person keeps using this tool.
 
@@ -10,23 +10,20 @@ import { ErrorBox, OkBox } from "../ui";
    shop, and it must not cost a tap into a detail page and back. Everything is
    editable inline; one submit saves the lot. */
 
+/* Тот же inputStyle из ui, но ниже и моноширинным: в таблице цен важно, чтобы
+   цифры стояли в колонку. Роли — семантические, как и в общем примитиве. */
 const cellInput = {
-  width: "100%",
+  ...inputStyle,
   height: 44,
   padding: "0 10px",
-  background: "var(--white)",
-  border: "1px solid var(--border-control)",
-  borderRadius: "var(--radius-md)",
-  outline: "none",
   fontFamily: "var(--font-mono)",
   fontSize: 16, // 16px or iOS zooms on focus
-  color: "var(--ink)",
 } as const;
 
 export function BulkForm({ rows }: { rows: AdminProductRow[] }) {
   const [state, action, pending] = useActionState(
     bulkUpdateAction,
-    null as { error?: string; ok?: boolean; changed?: number } | null,
+    null as { error?: string; ok?: boolean; changed?: number; published?: boolean } | null,
   );
 
   const editable = rows.filter((r) => r.variantId);
@@ -34,11 +31,14 @@ export function BulkForm({ rows }: { rows: AdminProductRow[] }) {
   return (
     <form action={action}>
       <ErrorBox>{state?.error}</ErrorBox>
-      {state?.ok ? (
-        <OkBox>
-          {state.changed === 0 ? "Изменений не было" : `Сохранено изменений: ${state.changed}`}
-        </OkBox>
-      ) : null}
+      <SaveNotice
+        ok={state?.ok}
+        /* Нечего было менять — значит и публиковать нечего, вопрос о сайте не
+           поднимается. */
+        published={state?.changed === 0 ? undefined : state?.published}
+      >
+        {state?.changed === 0 ? "Изменений не было." : `Сохранено изменений: ${state?.changed}.`}
+      </SaveNotice>
 
       <ul className="m-0 p-0 list-none flex flex-col gap-2">
         {editable.map((r) => (
@@ -49,8 +49,8 @@ export function BulkForm({ rows }: { rows: AdminProductRow[] }) {
           >
             <input type="hidden" name={`handle.${r.variantId}`} value={r.handle} />
 
-            <div className="font-sans text-[14px] text-ink truncate">{r.name}</div>
-            <div className="mt-0.5 vl-mono text-[12px] text-slate">{r.sku ?? "—"}</div>
+            <div className="font-sans text-[length:var(--text-body-s)] text-ink truncate">{r.name}</div>
+            <div className="mt-0.5 vl-mono text-[length:var(--text-caption)] text-slate">{r.sku ?? "—"}</div>
 
             <div className="mt-2.5 grid grid-cols-[1fr_auto] gap-2 items-center">
               <label className="block">
@@ -88,22 +88,10 @@ export function BulkForm({ rows }: { rows: AdminProductRow[] }) {
         className="sticky bottom-0 mt-4 py-3"
         style={{ background: "var(--surface-page)", borderTop: "0.5px solid var(--border)" }}
       >
-        <button
-          type="submit"
-          disabled={pending}
-          className="w-full rounded-md font-sans text-[16px]"
-          style={{
-            height: 52,
-            background: "var(--ink)",
-            color: "var(--glaze)",
-            border: "none",
-            cursor: pending ? "default" : "pointer",
-            opacity: pending ? 0.6 : 1,
-          }}
-        >
-          {pending ? "Сохраняем…" : "Сохранить"}
-        </button>
-        <p className="m-0 mt-2 text-center font-sans text-[12px] text-slate">
+        <Button type="submit" pending={pending} pendingLabel="Сохраняем…">
+          Сохранить
+        </Button>
+        <p className="m-0 mt-2 text-center font-sans text-[length:var(--text-caption)] text-slate">
           Пустая цена = «Цена по запросу». Товар нельзя будет добавить в корзину.
         </p>
       </div>

@@ -1,13 +1,24 @@
 "use client";
 
+import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { useCart } from "@/context/CartContext";
+import { useHideOnScrollDown } from "./useHideOnScrollDown";
 
 /* MobileTabBar — bottom navigation on mobile (as in the macket): Главная /
    Каталог / Избранное / Корзина, with bronze active state and count badges.
-   Height 56px — the product sticky buy bar sits above it. */
+   Height 56px — the product sticky buy bar sits above it.
+
+   Уезжает вниз при скролле вниз и возвращается от малейшего движения вверх:
+   на 390px панель съедала 56px и без того короткого экрана, а нужна она только
+   в момент, когда человек ищет, куда перейти.
+
+   Состояние публикуется атрибутом `data-tabbar` на <html>, потому что от высоты
+   панели отсчитывается липкая кнопка «В корзину» на карточке товара (см.
+   --tabbar-h в tokens.css). Через контекст это не передать: кнопка живёт в
+   другом поддереве. */
 
 type Tab = { key: string; icon: IconName; href: string; match: string; badge?: "fav" | "cart" };
 
@@ -23,12 +34,24 @@ export function MobileTabBar() {
   const pathname = usePathname();
   const { count, favCount, hydrated } = useCart();
 
+  const hidden = useHideOnScrollDown();
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (hidden) root.setAttribute("data-tabbar", "hidden");
+    else root.removeAttribute("data-tabbar");
+    return () => root.removeAttribute("data-tabbar");
+  }, [hidden]);
+
   const isActive = (tab: Tab) => (tab.match === "/" ? pathname === "/" : pathname.startsWith(tab.match));
   const badgeFor = (tab: Tab) => (tab.badge === "fav" ? favCount : tab.badge === "cart" ? count : 0);
 
   return (
     <nav
       className="md:hidden"
+      /* Спрятанная панель уезжает за экран, но остаётся в потоке фокуса —
+         `inert` убирает её и от клавиатуры, и от скринридера. */
+      inert={hidden}
       style={{
         position: "fixed",
         left: 0,
@@ -38,6 +61,10 @@ export function MobileTabBar() {
         background: "var(--white)",
         borderTop: "0.5px solid var(--line)",
         paddingBottom: "env(safe-area-inset-bottom)",
+        // 101% — чтобы вместе с панелью ушла и её волосяная граница сверху.
+        transform: hidden ? "translateY(101%)" : "translateY(0)",
+        transition: "transform 220ms ease-out",
+        willChange: "transform",
       }}
     >
       <div className="grid grid-cols-4">

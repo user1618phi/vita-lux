@@ -10,7 +10,10 @@ import { db, hasDatabase, schema } from "@vita/db/client";
    without a deploy — and the defaults below keep everything working before the
    database exists. */
 
-export const SETTINGS_TAG = "settings";
+/* Тег живёт в `./repo/tags` вместе с остальными — админке нужно его имя, но не
+   нужен этот модуль целиком (он `server-only` и тянет драйвер БД). */
+export { SETTINGS_TAG } from "./repo/tags";
+import { SETTINGS_TAG } from "./repo/tags";
 
 export interface StoreSettings {
   phonePrimary: string;
@@ -76,4 +79,11 @@ async function load(): Promise<StoreSettings> {
   }
 }
 
-export const getSettings = unstable_cache(load, ["store-settings"], { tags: [SETTINGS_TAG] });
+/* revalidate — та же страховка, что в repo/index.ts: сброс приезжает вебхуком
+   из другого деплоймента и может не дойти. Настройки особенно чувствительны —
+   до появления вебхука `revalidateTag(SETTINGS_TAG)` не вызывался НИГДЕ, и
+   смена телефона не доезжала до сайта вообще никогда. */
+export const getSettings = unstable_cache(load, ["store-settings"], {
+  tags: [SETTINGS_TAG],
+  revalidate: 300,
+});

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db, schema } from "@vita/db/client";
 import { currentAdmin } from "@/lib/auth";
-import { AdminNav } from "../../ui";
+import { logoutAction } from "../../actions";
+import { AdminNav, PageShell } from "../../ui";
 import { ProductForm, type ProductFormValues } from "../ProductForm";
 
 export const dynamic = "force-dynamic";
@@ -38,15 +39,22 @@ export default async function NewProductPage() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-[640px] px-4 py-5 pb-16">
-      <Link href="/products" className="font-sans text-[14px] text-slate" style={{ textDecoration: "none" }}>
-        ← Все товары
-      </Link>
-      <h1 className="mt-2 mb-4 font-display text-[22px] text-ink">Новый товар</h1>
-      <AdminNav current="products" role={admin.role} />
-      <div className="mt-5">
-        <ProductForm values={values} categories={categories} collections={collections} photos={[]} />
-      </div>
-    </main>
+    <PageShell
+      title="Новый товар"
+      aside={
+        <Link
+          href="/products"
+          className="font-sans"
+          style={{ fontSize: "var(--text-body-s)", color: "var(--text-secondary)", textDecoration: "none" }}
+        >
+          ← Все товары
+        </Link>
+      }
+      nav={
+        <AdminNav current="products" role={admin.role} username={admin.username} logoutAction={logoutAction} />
+      }
+    >
+      <ProductForm values={values} categories={categories} collections={collections} photos={[]} />
+    </PageShell>
   );
 }

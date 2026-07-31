@@ -320,6 +320,19 @@ html:not([data-theme="dark"]) .vl-when-dark {
 .vl-noscroll { scrollbar-width: none; }
 .vl-noscroll::-webkit-scrollbar { width: 0; height: 0; }
 
+/* ============ Нижняя панель навигации ============
+   Высота панели вкладок как переменная, потому что от неё отсчитывается
+   липкая кнопка «В корзину» на карточке товара. Панель прячется при скролле
+   вниз, и без общей переменной кнопка осталась бы висеть с дырой в 56px под
+   собой. Ноль по умолчанию: с md панели нет вовсе. */
+:root { --tabbar-h: 0px; }
+
+@media (max-width: 767px) {
+  :root { --tabbar-h: 56px; }
+  /* Атрибут ставит MobileTabBar, следя за направлением скролла. */
+  html[data-tabbar="hidden"] { --tabbar-h: 0px; }
+}
+
 /* The only "shadow" in the system: the brass focus ring. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--focus-ring);

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { db, schema } from "@vita/db/client";
 import { can, currentAdmin } from "@/lib/auth";
-import { AdminNav } from "../ui";
+import { logoutAction } from "../actions";
+import { AdminNav, PageShell } from "../ui";
 import { SettingsForm, type SettingGroup } from "./SettingsForm";
 
 export const dynamic = "force-dynamic";
@@ -28,15 +29,13 @@ const LAYOUT: { title: string; hint?: string; fields: { key: string; label: stri
       { key: "delivery.costKzt", label: "Стоимость доставки, ₸" },
     ],
   },
-  {
-    title: "Цены",
-    hint: "Используются, когда цена считается из оптовой в долларах.",
-    fields: [
-      { key: "pricing.fxRateUsdKzt", label: "Курс USD → ₸" },
-      { key: "pricing.defaultMarkupBp", label: "Наценка, базисные пункты", hint: "22000 = ×2.2" },
-      { key: "pricing.roundToKzt", label: "Округлять до, ₸" },
-    ],
-  },
+  /* Группы «Цены» здесь больше нет.
+
+     Она писала ключи pricing.fxRateUsdKzt / defaultMarkupBp / roundToKzt,
+     которых нет в KEYS (packages/data/src/settings.ts) — то есть их не читал
+     никто, и автопересчёта цен из оптовых долларовых в проекте не существует.
+     Владелец вводил курс доллара и ждал, что цены поедут; они не ехали.
+     Появится пересчёт — вернуть группу вместе с читателем. */
   {
     title: "Рассрочка",
     fields: [
@@ -65,12 +64,13 @@ export default async function SettingsPage() {
   }));
 
   return (
-    <main className="mx-auto w-full max-w-[640px] px-4 py-5 pb-16">
-      <h1 className="m-0 mb-4 font-display text-[22px] text-ink">Настройки</h1>
-      <AdminNav current="settings" role={admin.role} />
-      <div className="mt-5">
-        <SettingsForm groups={groups} />
-      </div>
-    </main>
+    <PageShell
+      title="Настройки"
+      nav={
+        <AdminNav current="settings" role={admin.role} username={admin.username} logoutAction={logoutAction} />
+      }
+    >
+      <SettingsForm groups={groups} />
+    </PageShell>
   );
 }

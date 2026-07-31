@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { deletePhotoAction, makeCoverAction, uploadPhotosAction } from "../media-actions";
-import { ErrorBox, OkBox } from "../ui";
+import { Button, ConfirmButton, ErrorBox, SaveNotice } from "../ui";
 
 export function PhotoManager({
   productId,
@@ -15,13 +15,15 @@ export function PhotoManager({
 }) {
   const [state, action, pending] = useActionState(
     uploadPhotosAction,
-    null as { error?: string; ok?: boolean; uploaded?: number } | null,
+    null as { error?: string; ok?: boolean; uploaded?: number; published?: boolean } | null,
   );
 
   return (
     <div>
       <ErrorBox>{state?.error}</ErrorBox>
-      {state?.ok ? <OkBox>Загружено фото: {state.uploaded}</OkBox> : null}
+      <SaveNotice ok={state?.ok} published={state?.published}>
+        Загружено фото: {state?.uploaded}.
+      </SaveNotice>
 
       <form action={action} className="flex flex-col gap-3">
         <input type="hidden" name="productId" value={productId} />
@@ -35,80 +37,76 @@ export function PhotoManager({
           accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
           capture="environment"
           multiple
-          className="font-sans text-[14px] text-ink"
+          className="font-sans text-[length:var(--text-body-s)] text-ink"
         />
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md font-sans text-[15px]"
-          style={{
-            height: 48,
-            background: "var(--surface-card)",
-            border: "1px solid var(--border-control)",
-            color: "var(--ink)",
-            cursor: pending ? "default" : "pointer",
-            opacity: pending ? 0.6 : 1,
-          }}
-        >
-          {pending ? "Загружаем…" : "Загрузить фото"}
-        </button>
-        <p className="m-0 font-sans text-[12px] text-slate">
-          До 10 МБ на фото. Сжимаем и конвертируем в WebP автоматически.
+        <Button type="submit" variant="secondary" size="sm" pending={pending} pendingLabel="Загружаем…">
+          Загрузить фото
+        </Button>
+        <p className="m-0 font-sans" style={{ fontSize: "var(--text-micro)", color: "var(--text-secondary)" }}>
+          Сжимаем и конвертируем в WebP автоматически.
         </p>
       </form>
 
       {photos.length > 0 ? (
-        <ul className="mt-4 m-0 p-0 list-none grid grid-cols-3 gap-2">
+        /* Две колонки на телефоне, а не три. При трёх на 390px миниатюра
+           получалась ~118px, и управляющие элементы налезали друг на друга.
+           Управление вынесено ПОД миниатюру: поверх фото любая кнопка либо
+           закрывает то, что нужно рассмотреть, либо промахивается пальцем. */
+        <ul className="mt-4 m-0 p-0 list-none grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {photos.map((p, i) => (
-            <li key={p.id} className="relative">
+            <li key={p.id}>
               <span
-                className="block rounded-md overflow-hidden"
+                className="block rounded-md overflow-hidden relative"
                 style={{ aspectRatio: "1 / 1", background: "var(--surface-media)" }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.url} alt="" className="vl-photo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                {i === 0 ? (
+                  <span
+                    className="absolute top-1 left-1 rounded-sm px-1.5 font-sans"
+                    style={{
+                      fontSize: "var(--text-micro)",
+                      background: "var(--surface-on-photo)",
+                      color: "var(--text-on-photo)",
+                    }}
+                  >
+                    обложка
+                  </span>
+                ) : null}
               </span>
 
-              {i === 0 ? (
-                <span
-                  className="absolute top-1 left-1 rounded-sm px-1.5 font-sans text-[11px]"
-                  style={{ background: "var(--ink)", color: "var(--action-primary-text)" }}
-                >
-                  обложка
-                </span>
-              ) : (
-                <form action={makeCoverAction} className="absolute top-1 left-1">
-                  <input type="hidden" name="mediaId" value={p.id} />
-                  <input type="hidden" name="productId" value={productId} />
-                  <input type="hidden" name="handle" value={handle} />
-                  <button
-                    type="submit"
-                    className="rounded-sm px-1.5 font-sans text-[11px]"
-                    style={{ background: "var(--white)", border: "0.5px solid var(--border)", color: "var(--ink)", cursor: "pointer" }}
-                  >
-                    сделать обложкой
-                  </button>
-                </form>
-              )}
+              <div className="mt-1.5 flex items-center justify-between gap-1">
+                {i === 0 ? (
+                  <span />
+                ) : (
+                  <form action={makeCoverAction}>
+                    <input type="hidden" name="mediaId" value={p.id} />
+                    <input type="hidden" name="productId" value={productId} />
+                    <input type="hidden" name="handle" value={handle} />
+                    <Button type="submit" variant="secondary" size="sm" fullWidth={false}>
+                      Обложка
+                    </Button>
+                  </form>
+                )}
 
-              <form action={deletePhotoAction} className="absolute top-1 right-1">
-                <input type="hidden" name="mediaId" value={p.id} />
-                <input type="hidden" name="handle" value={handle} />
-                <button
-                  type="submit"
-                  aria-label="Удалить фото"
-                  className="grid place-items-center rounded-sm"
-                  style={{ width: 26, height: 26, background: "var(--white)", border: "0.5px solid var(--border)", color: "var(--state-danger)", cursor: "pointer" }}
-                >
-                  ×
-                </button>
-              </form>
+                <form action={deletePhotoAction}>
+                  <input type="hidden" name="mediaId" value={p.id} />
+                  <input type="hidden" name="handle" value={handle} />
+                  {/* Удаление сносит и строку в БД, и оба объекта в хранилище —
+                      необратимо. Раньше это делала кнопка 26×26 без вопроса. */}
+                  <ConfirmButton aria-label="Удалить фото" confirmLabel="Удалить?">
+                    Удалить
+                  </ConfirmButton>
+                </form>
+              </div>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-4 font-sans text-[13px] text-slate">Фото пока нет.</p>
+        <p className="mt-4 font-sans" style={{ fontSize: "var(--text-caption)", color: "var(--text-secondary)" }}>
+          Фото пока нет.
+        </p>
       )}
     </div>
   );

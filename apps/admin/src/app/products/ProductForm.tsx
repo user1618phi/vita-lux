@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { saveProductAction, toggleVisibilityAction } from "../actions";
-import { ErrorBox, Field, inputStyle } from "../ui";
+import { Button, ErrorBox, Field, inputStyle } from "../ui";
 import { PhotoManager } from "./PhotoManager";
 
 /* Product editor.
@@ -108,7 +108,7 @@ export function ProductForm({
         </Field>
 
         <details className="rounded-lg" style={{ border: "0.5px solid var(--border)", padding: "12px 14px" }}>
-          <summary className="font-sans text-[15px] text-ink" style={{ cursor: "pointer" }}>
+          <summary className="font-sans text-[length:var(--text-body-s)] text-ink" style={{ cursor: "pointer" }}>
             Подробнее
           </summary>
 
@@ -146,32 +146,20 @@ export function ProductForm({
           </div>
         </details>
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md font-sans text-[16px]"
-          style={{
-            height: 52,
-            background: "var(--ink)",
-            color: "var(--glaze)",
-            border: "none",
-            cursor: pending ? "default" : "pointer",
-            opacity: pending ? 0.6 : 1,
-          }}
-        >
-          {pending ? "Сохраняем…" : isNew ? "Создать товар" : "Сохранить"}
-        </button>
+        <Button type="submit" pending={pending} pendingLabel="Сохраняем…">
+          {isNew ? "Создать товар" : "Сохранить"}
+        </Button>
       </form>
 
       {/* Photos are managed separately: uploads must not be lost if the form
           above fails validation. */}
       {values.productId ? (
         <div className="mt-8">
-          <h2 className="m-0 mb-3 font-sans font-medium text-[16px] text-ink">Фото</h2>
+          <h2 className="m-0 mb-3 font-sans font-medium text-[length:var(--text-body)] text-ink">Фото</h2>
           <PhotoManager productId={values.productId} handle={values.handle} photos={photos} />
         </div>
       ) : (
-        <p className="mt-6 font-sans text-[13px] text-slate">
+        <p className="mt-6 font-sans text-[length:var(--text-caption)] text-slate">
           Фото можно будет загрузить сразу после создания товара.
         </p>
       )}
@@ -180,19 +168,9 @@ export function ProductForm({
         <form action={toggleVisibilityAction} className="mt-8">
           <input type="hidden" name="productId" value={values.productId} />
           <input type="hidden" name="handle" value={values.handle} />
-          <button
-            type="submit"
-            className="w-full rounded-md font-sans text-[15px]"
-            style={{
-              height: 48,
-              background: "transparent",
-              border: "1px solid var(--border-control)",
-              color: "var(--slate)",
-              cursor: "pointer",
-            }}
-          >
+          <Button type="submit" variant="secondary" size="sm">
             {values.status === "active" ? "Скрыть с сайта" : "Показать на сайте"}
-          </button>
+          </Button>
         </form>
       ) : null}
     </>
