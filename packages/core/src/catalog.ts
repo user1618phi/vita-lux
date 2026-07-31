@@ -15,6 +15,14 @@ export interface CatalogItem {
   collection: string; // "aura" | "standart" | "bronze"
   price: number; // тенге, целое
   oldPrice?: number;
+  /* Оптовая цена из X2pos, целые тенге.
+
+     Показывается рядом с розничной, но только когда она СТРОГО ниже: у части
+     позиций опт заведён выше розницы, и показать такое — предложить покупателю
+     заплатить больше за то, что он берёт оптом. Решение принимает
+     `wholesaleForDisplay` в @vita/x2pos/map, сюда попадает уже готовое число
+     либо undefined. */
+  wholesalePrice?: number;
   outletType?: OutletType; // toilets only
   mountType?: MountType; // toilets / sinks / faucets where relevant
   finish: string; // finish key, localized via messages

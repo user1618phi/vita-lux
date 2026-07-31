@@ -27,7 +27,7 @@ import {
   type RawSearchParams,
   type SortKey,
 } from "@vita/core/catalog";
-import { benefitPercent } from "@vita/core/format";
+import { benefitPercent, formatTenge } from "@vita/core/format";
 
 export const dynamicParams = true;
 
@@ -184,6 +184,7 @@ export default async function CategoryPage({
                         handle={it.handle}
                         image={it.image}
                         price={it.price}
+                        wholesalePrice={it.wholesalePrice}
                         oldPrice={it.oldPrice}
                         status={it.stock}
                         months={it.installmentMonths}
@@ -192,6 +193,9 @@ export default async function CategoryPage({
                           ...baseLabels,
                           stock: tStock(it.stock),
                           benefit: pct > 0 ? tPrice("benefit", { pct }) : undefined,
+                          wholesaleFrom: it.wholesalePrice
+                            ? tPrice("wholesaleFrom", { price: formatTenge(it.wholesalePrice) })
+                            : undefined,
                         }}
                       />
                     </Reveal>

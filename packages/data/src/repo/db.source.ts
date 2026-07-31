@@ -1,7 +1,7 @@
 /* Not marked `server-only`: scripts/parity.ts compares this against the mock
    source from the command line. The guard sits on @/lib/repo, the module that
    pages import. */
-import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, schema } from "@vita/db/client";
 import { facetPolicy, type CatalogItem, type CategoryFilterConfig, type OutletType, type MountType, type PriceBucket } from "@vita/core/catalog";
 import type { StockState } from "@vita/core/stock";
@@ -33,6 +33,33 @@ const priceIsCurrent = and(
   or(isNull(price.validTo), sql`${price.validTo} > now()`),
 );
 
+/* Один действующий прайс на разновидность.
+
+   Раньше `price` подключался обычным leftJoin по `priceIsCurrent`, и это было
+   верно ровно до тех пор, пока открытая строка была одна: админка закрывает
+   предыдущую (`validTo = now()`) перед вставкой новой. Как только действующих
+   строк становится две — а так и происходит при акции на срок, которая должна
+   сама закончиться и вернуть базовую цену, — join размножает товар, порядок не
+   задан, и цена на витрине выбирается произвольно.
+
+   DISTINCT ON делает обещание из комментария выше настоящим: побеждает строка
+   с наибольшим `validFrom` среди действующих. Это же превращает акцию в
+   самоистекающую — по окончании окна снова выигрывает базовая строка, и
+   никакого крона для «вернуть цену обратно» не нужно. */
+function currentPrice() {
+  return db()
+    .selectDistinctOn([price.variantId], {
+      variantId: price.variantId,
+      retailKzt: price.retailKzt,
+      oldKzt: price.oldKzt,
+      wholesaleKzt: price.wholesaleKzt,
+    })
+    .from(price)
+    .where(priceIsCurrent)
+    .orderBy(price.variantId, desc(price.validFrom))
+    .as("current_price");
+}
+
 type Row = {
   handle: string;
   categorySlug: string;
@@ -49,6 +76,7 @@ type Row = {
   finish: string | null;
   retailKzt: number | null;
   oldKzt: number | null;
+  wholesaleKzt: number | null;
   stock: StockState | null;
   image: string | null;
 };
@@ -62,6 +90,11 @@ function toEntry(row: Row, gallery: string[]): CatalogEntry {
     collection: row.collectionSlug ?? "",
     price: row.retailKzt ?? 0,
     oldPrice: row.oldKzt ?? undefined,
+    /* Опт показываем только строго ниже розницы — см. комментарий у поля. */
+    wholesalePrice:
+      row.wholesaleKzt !== null && row.retailKzt !== null && row.wholesaleKzt < row.retailKzt
+        ? row.wholesaleKzt
+        : undefined,
     outletType: row.outletType ?? undefined,
     mountType: row.mountType ?? undefined,
     finish: row.finish ?? "",
@@ -79,6 +112,7 @@ function toEntry(row: Row, gallery: string[]): CatalogEntry {
 
 /** One product row joined with its default variant, current price, stock and cover. */
 function baseQuery(locale: string) {
+  const current = currentPrice();
   return db()
     .select({
       handle: product.handle,
@@ -94,8 +128,9 @@ function baseQuery(locale: string) {
       name: productI18n.name,
       sku: variant.sku,
       finish: variant.finish,
-      retailKzt: price.retailKzt,
-      oldKzt: price.oldKzt,
+      retailKzt: current.retailKzt,
+      oldKzt: current.oldKzt,
+      wholesaleKzt: current.wholesaleKzt,
       stock: inventory.state,
       image: media.url,
       productId: product.id,
@@ -106,7 +141,7 @@ function baseQuery(locale: string) {
     .leftJoin(collection, eq(collection.id, product.collectionId))
     .leftJoin(productI18n, and(eq(productI18n.productId, product.id), eq(productI18n.locale, locale)))
     .leftJoin(variant, and(eq(variant.productId, product.id), eq(variant.isDefault, true)))
-    .leftJoin(price, and(eq(price.variantId, variant.id), priceIsCurrent))
+    .leftJoin(current, eq(current.variantId, variant.id))
     .leftJoin(inventory, eq(inventory.variantId, variant.id))
     .leftJoin(media, and(eq(media.productId, product.id), eq(media.sort, 0)));
 }

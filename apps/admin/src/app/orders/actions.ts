@@ -10,6 +10,7 @@ import { normalizeKzPhone } from "@vita/core/phone-kz";
 import { normalizeRefCode } from "@vita/core/order/ref";
 import type { DeliveryMethod, OrderStatus, PaymentMethod } from "@vita/core/order/labels";
 import { audit, currentAdmin } from "@/lib/auth";
+import { enqueueReturnForOrder } from "@/lib/x2pos-return";
 import { ORDERS_PER_PAGE } from "./pagination";
 
 /* Заказы.
@@ -251,6 +252,27 @@ export async function setOrderStatusAction(
 
   // В журнал идут только статусы. Ничего персонального.
   await audit(admin.id, "order", id, "status", { status: row.status }, { status: parsed.data });
+
+  /* Отмена обязана вернуть товар на склад: продажа уходит в X2pos со статусом
+     `issued`, то есть остаток списан ещё при оформлении. Если этого не
+     сделать, склад недосчитается товара, который никто не забирал.
+
+     Best-effort и после записи статуса: X2pos не должен мешать менеджеру
+     отменить заказ. Не получилось — задание останется в очереди, и его
+     подберёт крон; зависшие записи видны на странице /x2pos. */
+  if (parsed.data === "cancelled" && row.status !== "cancelled") {
+    try {
+      const result = await enqueueReturnForOrder(id);
+      await audit(admin.id, "order", id, "x2pos.return", null, {
+        queued: result.queued,
+        cancelledPending: result.cancelledPending,
+        reason: result.reason ?? null,
+      });
+    } catch {
+      /* Payload заказа не логируем ни при каких обстоятельствах. */
+      await audit(admin.id, "order", id, "x2pos.return", null, { queued: false, failed: true });
+    }
+  }
 
   revalidatePath(`/orders/${id}`);
   revalidatePath("/orders");

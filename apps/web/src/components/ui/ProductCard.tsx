@@ -26,6 +26,7 @@ export interface ProductCardProps {
   image?: string;
   price: number;
   oldPrice?: number;
+  wholesalePrice?: number;
   status?: StockState;
   months?: number;
   productLabel?: { kind: "hit" | "sale" | "new"; text: string };
@@ -37,6 +38,9 @@ export interface ProductCardProps {
     favoriteAdd: string;
     favoriteRemove: string;
     benefit?: string;
+    /* Уже подставленная строка «оптом от N ₸». Готовой её собирает страница —
+       компоненты не форматируют деньги и не знают про локаль. */
+    wholesaleFrom?: string;
   };
   style?: CSSProperties;
 }
@@ -48,6 +52,7 @@ export function ProductCard({
   image,
   price,
   oldPrice,
+  wholesalePrice,
   status = "in",
   months = 12,
   productLabel,
@@ -204,7 +209,14 @@ export function ProductCard({
         </Link>
         <StockStatus status={status} label={labels.stock} size="sm" />
         <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 6, paddingTop: 8 }}>
-          <PriceTag price={price} oldPrice={oldPrice} size="md" benefitText={labels.benefit} />
+          <PriceTag
+            price={price}
+            oldPrice={oldPrice}
+            wholesalePrice={wholesalePrice}
+            wholesaleText={labels.wholesaleFrom}
+            size="md"
+            benefitText={labels.benefit}
+          />
           <InstallmentLine total={price} months={months} fromLabel={labels.installmentFrom} monthsLabel={labels.months} />
         </div>
         <div style={{ marginTop: 4 }}>

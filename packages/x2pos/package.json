@@ -1,0 +1,32 @@
+{
+  "name": "@vita/x2pos",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./client": "./src/client.ts",
+    "./config": "./src/config.ts",
+    "./map": "./src/map.ts",
+    "./types": "./src/types.ts",
+    "./sync/catalog": "./src/sync/catalog.ts",
+    "./sync/media": "./src/sync/media.ts",
+    "./sync/outbox": "./src/sync/outbox.ts",
+    "./sync/report": "./src/sync/report.ts",
+    "./sync/state": "./src/sync/state.ts",
+    "./sync/stock": "./src/sync/stock.ts"
+  },
+  "scripts": {
+    "test": "node --test --experimental-strip-types \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vita/core": "workspace:*",
+    "@vita/db": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "sharp": "^0.35.3"
+  }
+}

@@ -15,71 +15,26 @@ import { db, hasDatabase, schema } from "@vita/db/client";
 export { SETTINGS_TAG } from "./repo/tags";
 import { SETTINGS_TAG } from "./repo/tags";
 
-export interface StoreSettings {
-  phonePrimary: string;
-  phoneSecondary: string;
-  city: string;
-  address: string;
-  freeFromKzt: number;
-  deliveryCostKzt: number;
-  installmentMonths: number;
-  installmentEnabled: boolean;
-}
-
-/* Defaults match what the code shipped with, so nothing changes behaviour
-   until a real value is entered in the admin. */
-const DEFAULTS: StoreSettings = {
-  phonePrimary: "77079961717",
-  phoneSecondary: "",
-  city: "",
-  address: "",
-  freeFromKzt: 150000,
-  deliveryCostKzt: 3900,
-  installmentMonths: 24,
-  installmentEnabled: true,
-};
-
-/* Экспортируется, чтобы админка валидировала запись по тому же списку, по
-   которому витрина читает. Раньше форма писала любой ключ вида `setting.*`, и
-   подделанный POST мог насыпать в таблицу произвольные строки; а ключи
-   `pricing.*` форма писала годами, притом что читателя у них не было. */
-export const SETTING_KEYS: Record<keyof StoreSettings, string> = {
-  phonePrimary: "contact.phonePrimary",
-  phoneSecondary: "contact.phoneSecondary",
-  city: "contact.city",
-  address: "contact.address",
-  freeFromKzt: "delivery.freeFromKzt",
-  deliveryCostKzt: "delivery.costKzt",
-  installmentMonths: "installment.months",
-  installmentEnabled: "installment.enabled",
-};
+/* По той же причине ключи, умолчания и разбор вынесены в `./settings.keys`:
+   воркеру синхронизации на Railway они нужны, а `next/cache` и драйвер БД из
+   этого модуля — нет. Здесь только чтение и кэш. */
+export {
+  SETTING_DEFAULTS,
+  SETTING_KEYS,
+  parseSettings,
+  type StoreSettings,
+} from "./settings.keys";
+import { SETTING_DEFAULTS, parseSettings, type StoreSettings } from "./settings.keys";
 
 async function load(): Promise<StoreSettings> {
-  if (!hasDatabase()) return DEFAULTS;
+  if (!hasDatabase()) return SETTING_DEFAULTS;
 
   try {
     const rows = await db().select().from(schema.setting);
-    const byKey = new Map(rows.map((r) => [r.key, r.value]));
-    const out = { ...DEFAULTS };
-
-    for (const [field, key] of Object.entries(SETTING_KEYS) as [keyof StoreSettings, string][]) {
-      const raw = byKey.get(key);
-      if (raw === undefined || raw === null || raw === "") continue;
-
-      const fallback = DEFAULTS[field];
-      if (typeof fallback === "number") {
-        const n = Number(raw);
-        if (Number.isFinite(n)) (out[field] as number) = n;
-      } else if (typeof fallback === "boolean") {
-        (out[field] as boolean) = raw === true || raw === 1 || raw === "1" || raw === "true";
-      } else {
-        (out[field] as string) = String(raw);
-      }
-    }
-    return out;
+    return parseSettings(rows);
   } catch {
     // Never let a settings read take the storefront down.
-    return DEFAULTS;
+    return SETTING_DEFAULTS;
   }
 }
 

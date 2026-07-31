@@ -43,6 +43,29 @@ const LAYOUT: { title: string; hint?: string; fields: { key: string; label: stri
       { key: "installment.enabled", label: "Показывать рассрочку", hint: "1 — да, 0 — нет" },
     ],
   },
+  {
+    title: "Склад X2pos",
+    hint: "Действуют на ближайшей синхронизации. Ручные цены товаров не затрагиваются.",
+    fields: [
+      {
+        key: "stock.bufferQty",
+        label: "Запас, шт",
+        hint:
+          "Сколько штук не показывать на сайте. При остатке ниже запаса товар идёт как «под заказ». " +
+          "Резерва в X2pos нет: тот же товар могут продать в магазине через минуту после заказа.",
+      },
+      {
+        key: "pricing.globalMarkupBp",
+        label: "Наценка к цене X2pos, б.п.",
+        hint: "0 — цена как в X2pos. 1000 = +10%, 2500 = +25%. Округление вверх.",
+      },
+      {
+        key: "pricing.showWholesale",
+        label: "Показывать оптовую цену",
+        hint: "1 — да, 0 — нет. Опт показывается только когда он строго ниже розницы.",
+      },
+    ],
+  },
 ];
 
 export default async function SettingsPage() {

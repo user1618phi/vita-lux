@@ -16,6 +16,10 @@ export interface LineSnapshot {
   name: string;
   price: number;
   oldPrice?: number;
+  /* Опт едет в снапшот, потому что избранное и корзина перепроверяются через
+     тот же `resolveLines` — иначе на этих экранах цена была бы не та, что в
+     каталоге. */
+  wholesalePrice?: number;
   image?: string;
   gallery?: string[];
   collection: string;
@@ -39,6 +43,7 @@ function toSnapshot(item: Awaited<ReturnType<typeof resolveLines>>[number]["item
     name: item.name,
     price: item.price,
     oldPrice: item.oldPrice,
+    wholesalePrice: item.wholesalePrice,
     image: item.image,
     gallery: item.gallery,
     collection: item.collection,

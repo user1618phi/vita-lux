@@ -12,7 +12,8 @@
     "./repo/mock.source": "./src/repo/mock.source.ts",
     "./repo/tags": "./src/repo/tags.ts",
     "./repo/types": "./src/repo/types.ts",
-    "./settings": "./src/settings.ts"
+    "./settings": "./src/settings.ts",
+    "./settings.keys": "./src/settings.keys.ts"
   },
   "dependencies": {
     "@vita/core": "workspace:*",

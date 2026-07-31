@@ -43,6 +43,7 @@
   },
   "Price": {
     "benefit": "Выгода {pct}%",
+    "wholesaleFrom": "оптом от {price}",
     "installmentFrom": "В рассрочку от",
     "months": "мес"
   },
@@ -554,7 +555,7 @@
     ],
     "contactsHeading": "Контакты",
     "phone": "+7 707 996 17 17",
-    "email": "hello@vitalux.kz",
+    "email": "nurkenn@mail.ru",
     "address": "Шымкент, ул. Малая Гульбах, 3",
     "payment": "Оплата: Visa · Mastercard · Kaspi · Halyk",
     "copyright": "© 2026 Vita Lux"

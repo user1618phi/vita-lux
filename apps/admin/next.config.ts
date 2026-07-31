@@ -8,7 +8,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Пакеты воркспейса отдают исходный TypeScript, без шага сборки.
-  transpilePackages: ["@vita/core", "@vita/data", "@vita/db", "@vita/i18n", "@vita/ui"],
+  transpilePackages: ["@vita/core", "@vita/data", "@vita/db", "@vita/i18n", "@vita/ui", "@vita/x2pos"],
   experimental: {
     /* Фото приходят Server Action'ом, а его тело по умолчанию ограничено 1 МБ —
        снимок с телефона не пролезал, и падало это до входа в экшен, поэтому

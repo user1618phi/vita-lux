@@ -303,7 +303,7 @@ export function AdminNav({
   username,
   logoutAction,
 }: {
-  current: "products" | "bulk" | "settings" | "orders" | "account" | "accounts";
+  current: "products" | "bulk" | "settings" | "orders" | "account" | "accounts" | "x2pos";
   role?: AdminRole;
   username?: string;
   logoutAction?: () => void | Promise<void>;
@@ -315,6 +315,9 @@ export function AdminNav({
       { key: "orders", href: "/orders", label: "Заказы" },
       { key: "products", href: "/products", label: "Товары" },
       { key: "bulk", href: "/bulk", label: "Цены и наличие" },
+      /* Синхронизация со складом — владельцу: там видны цены закупа и решения
+         о наценке, а не только карточки товаров. */
+      { key: "x2pos", href: "/x2pos", label: "Склад X2pos", capability: "settings" as const },
       { key: "settings", href: "/settings", label: "Настройки", capability: "settings" as const },
       { key: "accounts", href: "/accounts", label: "Доступ", capability: "accounts" as const },
       { key: "account", href: "/account", label: "Профиль" },
