@@ -6,9 +6,9 @@
    a name that silently falls back to the handle, a dropped gallery photo, a
    stock state that defaults instead of loading. */
 
-import { mockSource } from "../src/lib/repo/mock.source.ts";
-import { dbSource } from "../src/lib/repo/db.source.ts";
-import type { CatalogEntry } from "../src/lib/repo/types.ts";
+import { mockSource } from "@vita/data/repo/mock.source";
+import { dbSource } from "@vita/data/repo/db.source";
+import type { CatalogEntry } from "@vita/data/repo/types";
 
 const LOCALES = ["ru", "kk"] as const;
 

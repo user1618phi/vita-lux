@@ -1,0 +1,1 @@
+ALTER TABLE "product" ALTER COLUMN "installment_months" SET DEFAULT 24;

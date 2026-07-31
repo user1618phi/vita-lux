@@ -11,7 +11,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+// Локали переехали в packages/i18n — путь ведёт туда.
+const root = join(dirname(fileURLToPath(import.meta.url)), "..", "packages", "i18n");
 
 /* The glyphs that distinguish Kazakh Cyrillic from Russian. If a transform
    strips them, the text silently degrades into broken Russian. */

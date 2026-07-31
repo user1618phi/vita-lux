@@ -1,0 +1,14 @@
+{
+  "name": "@vita/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./load": "./src/load.ts",
+    "./messages/*": "./messages/*",
+    "./paths": "./src/paths.ts"
+  },
+  "scripts": {
+    "check": "node ../../scripts/check-kk-glyphs.mjs"
+  }
+}

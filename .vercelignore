@@ -1,0 +1,26 @@
+# What must never leave this machine on a `vercel deploy`.
+#
+# Deploys here run from the working directory, not from a git remote, so the
+# CLI uploads whatever is on disk. .env.local holds the encryption key and the
+# database URL — it is excluded first and deliberately. Real configuration
+# belongs in the project's environment variables on Vercel.
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Vercel installs dependencies and builds from source itself.
+node_modules
+.next
+out
+build
+*.tsbuildinfo
+
+.git
+.DS_Store
+
+# Local-only uploads: STORAGE_DRIVER=local writes here, and the filesystem is
+# read-only on Vercel anyway.
+public/uploads

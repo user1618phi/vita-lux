@@ -1,9 +1,12 @@
-/node_modules
-/.next
-/out
-/build
+# Без ведущего слэша — иначе игнорируется только корневой каталог, а в
+# воркспейсе node_modules и .next есть у каждого пакета и приложения.
+node_modules
+.next
+out
+build
 next-env.d.ts
 *.tsbuildinfo
 .env*
 !.env.example
 .DS_Store
+.vercel
