@@ -5,9 +5,10 @@ import { isX2posEnabled } from "@vita/x2pos/config";
 import { listDrafts } from "@vita/x2pos/sync/catalog";
 import { CURSOR_LAST_REPORT, CURSOR_LAST_RUN, readState } from "@vita/x2pos/sync/state";
 import type { SyncReport } from "@vita/x2pos/sync/report";
-import { can, currentAdmin } from "@/lib/auth";
-import { logoutAction } from "../actions";
-import { AdminNav, ErrorBox, PageShell } from "../ui";
+import { currentAdmin } from "@/lib/auth";
+import { ErrorBox } from "../ui";
+import { AppShell, Empty, Panel, Section } from "@/components/AppShell";
+import { RunButtons } from "./RunButtons";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +32,9 @@ const ANOMALY_LABELS: Record<string, string> = {
   "no-vendor-code": "Нет артикула",
 };
 
-export default async function X2posPage() {
+export default async function SyncPage() {
   const admin = await currentAdmin();
   if (!admin) redirect("/login");
-  if (!can(admin.role, "settings")) redirect("/products?denied=1");
 
   const d = db();
   const [lastRun, catalogReport, stockReport, drafts, stuck] = await Promise.all([
@@ -62,11 +62,18 @@ export default async function X2posPage() {
   for (const a of anomalies) byKind.set(a.kind, [...(byKind.get(a.kind) ?? []), a]);
 
   return (
-    <PageShell
-      title="Склад X2pos"
-      width="wide"
-      nav={<AdminNav current="x2pos" role={admin.role} username={admin.username} logoutAction={logoutAction} />}
+    <AppShell
+      title="Обмен с X2pos"
+      subtitle="Расписание держит воркер на Railway: остатки и очередь каждые 5 минут, каталог 15, фото раз в час."
     >
+      <Section title="Запустить сейчас" hint="Не дожидаясь расписания. Одновременно выполняется одно задание.">
+        <Panel>
+          <div className="p-4">
+            <RunButtons />
+          </div>
+        </Panel>
+      </Section>
+
       {!isX2posEnabled() ? (
         <ErrorBox>
           Интеграция выключена: переменная X2POS_ENABLED не равна «1». Сайт работает на данных из
@@ -110,7 +117,7 @@ export default async function X2posPage() {
         hint="Товары приехали из X2pos как черновики. На сайте их не видно, пока не заданы название, категория и адрес страницы. Названия из X2pos для витрины не годятся: 36 позиций там называются просто «Унитаз»."
       >
         {drafts.length === 0 ? (
-          <Empty>Все товары из X2pos заполнены.</Empty>
+          <EmptyText>Все товары из X2pos заполнены.</EmptyText>
         ) : (
           <ul className="m-0 list-none p-0">
             {drafts.slice(0, 40).map((p) => (
@@ -130,7 +137,7 @@ export default async function X2posPage() {
         hint="Это не ошибки обмена. Это товары, которые не продадутся, пока их не поправят в самом X2pos — сайт не может показать больше, чем там заведено."
       >
         {anomalies.length === 0 ? (
-          <Empty>Замечаний нет.</Empty>
+          <EmptyText>Замечаний нет.</EmptyText>
         ) : (
           [...byKind.entries()].map(([kind, list]) => (
             <div key={kind} className="mb-3">
@@ -155,7 +162,7 @@ export default async function X2posPage() {
         hint="Заказы, которые сайт принял, но склад ещё не получил. Самая частая причина — закрытая смена на кассе: пока её не откроют, продажу создать нельзя."
       >
         {stuck.length === 0 ? (
-          <Empty>Очередь пуста — всё передано.</Empty>
+          <EmptyText>Очередь пуста — всё передано.</EmptyText>
         ) : (
           <ul className="m-0 list-none p-0">
             {stuck.map((s) => (
@@ -172,27 +179,10 @@ export default async function X2posPage() {
           </ul>
         )}
       </Section>
-    </PageShell>
+    </AppShell>
   );
 }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <section className="mt-5 rounded-lg border p-4" style={{ borderColor: "var(--border-control)" }}>
-      <h2 className="m-0 font-display" style={{ fontSize: "var(--text-body-l)", color: "var(--text-primary)" }}>
-        {title}
-      </h2>
-      {hint ? (
-        <p className="mt-1 mb-3" style={{ fontSize: "var(--text-body-s)", color: "var(--text-secondary)" }}>
-          {hint}
-        </p>
-      ) : (
-        <div className="mb-3" />
-      )}
-      {children}
-    </section>
-  );
-}
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -205,12 +195,17 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="m-0" style={{ color: "var(--text-secondary)" }}>{children}</p>;
-}
 
 function formatWhen(iso: string): string {
   const d = new Date(iso);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${p(d.getDate())}.${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function EmptyText({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="m-0 px-4 pb-4" style={{ color: "var(--text-secondary)" }}>
+      {children}
+    </p>
+  );
 }

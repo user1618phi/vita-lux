@@ -141,6 +141,28 @@
   --tint-whatsapp: rgba(37, 211, 102, 0.08);
   --whatsapp-text: #1c7a46; /* WhatsApp green readable as text (the brand green is not) */
 
+  /* ── Series colours for admin charts ───────────────────────────────────
+
+     A CATEGORICAL pair, and the only one in the system. The status colours
+     cannot stand in for it: as series, `--success` and `--water` sit ΔE 7.9
+     apart in normal vision, which a reader with full colour vision cannot
+     separate. These two were computed against the six standard checks
+     (lightness band, chroma floor, CVD separation, normal-vision floor,
+     contrast vs surface) and pass all of them in BOTH themes.
+
+     Two slots on purpose. Every admin chart is either one series (a top-N
+     ranking) or this pair, sales-through-the-site against sales-in-the-shop.
+     A third series does not get invented here — it folds into "other" or
+     becomes a second chart. And status stays status: it ships with a label,
+     never as "series 3".
+
+     Re-run after ANY edit:
+       node scripts/validate_palette.js "#b07f3c,#3a82b8" --mode dark  --surface "#241f18"
+       node scripts/validate_palette.js "#b07f3c,#3a82b8" --mode light --surface "#f3ede3" */
+  --chart-site: #b07f3c; /* сайт */
+  --chart-store: #3a82b8; /* магазин */
+  --chart-grid: var(--color-line); /* recessive gridlines — never darker than the marks */
+
   /* Actions */
   --action-primary-bg: var(--color-ink);
   --action-primary-text: var(--color-glaze);

@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { PageShell } from "@/components/PageShell";
 import { notFound, redirect } from "next/navigation";
 import { currentAdmin } from "@/lib/auth";
 import { groupDigits } from "@vita/core/format";
 import { formatKzPhone } from "@vita/core/phone-kz";
 import { DELIVERY_LABEL, NOTIFY_LABEL, PAYMENT_LABEL } from "@vita/core/order/labels";
 import { logoutAction } from "../../actions";
-import { AdminNav, ErrorBox, OrderStatusChip, PageShell } from "../../ui";
+import { ErrorBox, OrderStatusChip } from "../../ui";
 import { getOrder } from "../actions";
 import { OrderForms } from "./OrderForms";
 
@@ -54,7 +55,6 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           ← Все заказы
         </Link>
       }
-      nav={<AdminNav current="orders" role={admin.role} username={admin.username} logoutAction={logoutAction} />}
     >
       {o.piiBroken ? (
         <ErrorBox>

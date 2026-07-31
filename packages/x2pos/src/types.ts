@@ -103,11 +103,70 @@ export type SessionRow = z.infer<typeof sessionRow>;
 export const customer = z.object({
   id: z.string(),
   customer_name: z.string().nullish(),
+  company_name: z.string().nullish(),
   tel: z.string().nullish(),
+  kato_text: z.string().nullish(),
   is_supplier: numeric,
+  /* Баланс клиента по версии X2pos. Отрицательный — клиент должен нам.
+
+     ВНИМАНИЕ: сумма этого поля по всем клиентам НЕ сходится с долгом,
+     посчитанным по продажам (`total − total_paid`). На боевом аккаунте это
+     9.9 млн против 24.8 млн. Расхождение внутреннее для X2pos и снаружи не
+     сводится, поэтому обе цифры показываются раздельно и под своими
+     подписями — выбрать одну молча значит соврать. */
+  debt: numeric,
+  is_deleted: numeric,
 });
 export const customerList = z.array(customer);
 export type Customer = z.infer<typeof customer>;
+
+export const financeAccount = z.object({
+  id: z.string(),
+  branch_id: z.string().nullish(),
+  type: z.string(),
+  name: z.string(),
+  amount: numeric,
+  currency: z.string().nullish(),
+  is_archived: numeric,
+});
+export const financeAccountList = z.array(financeAccount);
+export type FinanceAccount = z.infer<typeof financeAccount>;
+
+export const procurementItem = z.object({
+  variation_id: z.string().nullish(),
+  product_name: z.string().nullish(),
+  quantity_acquired: numeric,
+  buy_price: numeric,
+  total: numeric,
+});
+
+export const procurement = z.object({
+  id: z.string(),
+  action: z.string(), // acceptance | move | writeoff | revision
+  status: z.string(), // draft | completed | canceled | waiting_to_confirm
+  procurement_date: z.string().nullish(),
+  total_quantity: numeric,
+  total_amount: numeric,
+  supplier_name: z.string().nullish(),
+  notes: z.string().nullish(),
+  is_deleted: numeric,
+  /* Объект с ключами-id — но у ПУСТОГО документа приезжает `[]`.
+
+     Так ведёт себя PHP: `json_encode` от пустого ассоциативного массива даёт
+     массив, а не объект. Схема, знающая только про объект, роняла разбор всех
+     тринадцати документов из-за трёх пустых, и раздел «Поступления» показывал
+     «данные не получены» при живом X2pos. Принимаем оба вида и приводим к
+     объекту. */
+  procurement_items: z
+    .union([z.record(z.string(), procurementItem), z.array(procurementItem)])
+    .nullish()
+    .transform((v) => (Array.isArray(v) ? {} : (v ?? {}))),
+});
+export const procurementResponse = z.object({
+  status: z.string(),
+  procurements: z.array(procurement).nullish(),
+});
+export type Procurement = z.infer<typeof procurement>;
 
 /** POST /api/customers answers only {"status":"success"} — no id. */
 export const mutationResult = z.object({
@@ -122,6 +181,14 @@ export const createOrderResult = z.object({
 });
 export type CreateOrderResult = z.infer<typeof createOrderResult>;
 
+export const orderItemRow = z.object({
+  product_name: z.string().nullish(),
+  product_vendor_code: z.string().nullish(),
+  variation_id: z.string().nullish(),
+  quantity: numeric,
+  total: numeric,
+});
+
 export const orderRow = z.object({
   id: z.string(),
   form_guid: z.string().nullish(),
@@ -129,8 +196,17 @@ export const orderRow = z.object({
   external_order_id: z.string().nullish(),
   status: z.string().nullish(),
   total: numeric,
+  /* Оплаченная часть. Без неё долг посчитать нельзя, а zod молча вырезает
+     всё, чего нет в схеме — именно так «не оплачено» однажды показало 100%
+     выручки: поле приходило, но до кода не доезжало. */
+  total_paid: numeric,
   order_date: z.string().nullish(),
+  customer_id: z.string().nullish(),
+  customer_name: z.string().nullish(),
+  is_return: numeric,
   is_deleted: numeric,
+  /* Позиции продажи — объект с ключами-id, как и `variations` у товара. */
+  order_items: z.record(z.string(), orderItemRow).nullish(),
 });
 export const orderListResponse = z.object({
   status: z.string(),

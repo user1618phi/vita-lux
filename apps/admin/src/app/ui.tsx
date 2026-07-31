@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
-import { can, type AdminRole } from "@vita/core/permissions";
+
 import { ORDER_STATUS_LABEL, type OrderStatus } from "@vita/core/order/labels";
 import { ConfirmButtonClient } from "./ConfirmButton";
 
@@ -135,37 +135,6 @@ export function Field({
    `width` — не про красоту, а про содержимое: списку нужна широкая колонка,
    форме узкая, иначе строка ввода растягивается на весь экран ноутбука и
    читать её тяжело. */
-export function PageShell({
-  title,
-  aside,
-  nav,
-  width = "narrow",
-  children,
-}: {
-  title: string;
-  aside?: ReactNode;
-  nav?: ReactNode;
-  width?: "narrow" | "wide";
-  children: ReactNode;
-}) {
-  return (
-    <main
-      className={`mx-auto w-full px-4 py-5 pb-24 ${width === "wide" ? "max-w-[900px] lg:max-w-[1100px]" : "max-w-[640px]"}`}
-    >
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <h1
-          className="m-0 font-display"
-          style={{ fontSize: "var(--text-title)", color: "var(--text-primary)" }}
-        >
-          {title}
-        </h1>
-        {aside}
-      </header>
-      {nav}
-      {children}
-    </main>
-  );
-}
 
 /* ── Подтверждение необратимого действия ───────────────────────────────────
 
@@ -297,67 +266,3 @@ export function StockChip({ state }: { state: string | null }) {
    (списка товаров). На /bulk, /settings и в карточке товара выйти было нельзя
    вообще — приходилось возвращаться на список. Здесь они появляются на каждом
    экране, потому что навигация есть на каждом. */
-export function AdminNav({
-  current,
-  role = "owner",
-  username,
-  logoutAction,
-}: {
-  current: "products" | "bulk" | "settings" | "orders" | "account" | "accounts" | "x2pos";
-  role?: AdminRole;
-  username?: string;
-  logoutAction?: () => void | Promise<void>;
-}) {
-  const tabs = (
-    [
-      /* Заказы первыми: это ежедневная работа, а товары правят реже.
-         Видны обеим ролям — звонит покупателю именно менеджер. */
-      { key: "orders", href: "/orders", label: "Заказы" },
-      { key: "products", href: "/products", label: "Товары" },
-      { key: "bulk", href: "/bulk", label: "Цены и наличие" },
-      /* Синхронизация со складом — владельцу: там видны цены закупа и решения
-         о наценке, а не только карточки товаров. */
-      { key: "x2pos", href: "/x2pos", label: "Склад X2pos", capability: "settings" as const },
-      { key: "settings", href: "/settings", label: "Настройки", capability: "settings" as const },
-      { key: "accounts", href: "/accounts", label: "Доступ", capability: "accounts" as const },
-      { key: "account", href: "/account", label: "Профиль" },
-    ] as const
-  ).filter((t) => !("capability" in t) || can(role, t.capability));
-
-  return (
-    <div className="mt-3 mb-4 flex flex-wrap items-center justify-between gap-2">
-      <nav className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-        {tabs.map((t) => (
-          <a
-            key={t.key}
-            href={t.href}
-            className="flex-none rounded-md px-3.5 font-sans leading-[44px]"
-            style={{
-              fontSize: "var(--text-body-s)",
-              background: current === t.key ? "var(--action-primary-bg)" : "transparent",
-              color: current === t.key ? "var(--action-primary-text)" : "var(--text-secondary)",
-              textDecoration: "none",
-            }}
-          >
-            {t.label}
-          </a>
-        ))}
-      </nav>
-
-      {username ? (
-        <div className="flex items-center gap-2">
-          <span className="font-sans" style={{ fontSize: "var(--text-micro)", color: "var(--text-secondary)" }}>
-            {username} · {role === "owner" ? "владелец" : "менеджер"}
-          </span>
-          {logoutAction ? (
-            <form action={logoutAction}>
-              <Button type="submit" variant="secondary" size="sm" fullWidth={false}>
-                Выйти
-              </Button>
-            </form>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}

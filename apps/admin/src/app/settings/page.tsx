@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
+import { PageShell } from "@/components/PageShell";
 import { db, schema } from "@vita/db/client";
 import { can, currentAdmin } from "@/lib/auth";
 import { logoutAction } from "../actions";
-import { AdminNav, PageShell } from "../ui";
+
 import { SettingsForm, type SettingGroup } from "./SettingsForm";
 
 export const dynamic = "force-dynamic";
@@ -89,9 +90,6 @@ export default async function SettingsPage() {
   return (
     <PageShell
       title="Настройки"
-      nav={
-        <AdminNav current="settings" role={admin.role} username={admin.username} logoutAction={logoutAction} />
-      }
     >
       <SettingsForm groups={groups} />
     </PageShell>
