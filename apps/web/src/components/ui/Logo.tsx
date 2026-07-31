@@ -46,11 +46,22 @@ export function Logo({ variant = "dark", showTagline = true, className, style }:
         <path d="M59.5403 108.881C89.637 106.105 116.312 128.187 119.205 158.272C122.097 188.356 100.117 215.115 70.0426 218.124C39.8034 221.148 12.8639 199.023 9.95555 168.773C7.04763 138.524 29.2786 111.672 59.5403 108.881Z" />
       </svg>
       <span style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}>
-        <span style={{ fontFamily: "var(--font-display)", fontSize: 19, fontWeight: 500, letterSpacing: "0.2em", color: text, lineHeight: 1 }}>
+        {/* На мобильном подпись прячется: на 390px 8px-текст с трекингом 0.34em
+            всё равно нечитаем, а место в строке с логотипом дорогое. Взамен
+            надпись крупнее — иначе оставшийся блок теряет вес рядом со знаком
+            высотой 30px. Размер задаём классом, а не в style: инлайн-стиль
+            перебил бы медиазапрос. Подвал (showTagline={false}) не трогаем. */}
+        <span
+          className={showTagline ? "text-[22px] md:text-[19px]" : "text-[19px]"}
+          style={{ fontFamily: "var(--font-display)", fontWeight: 500, letterSpacing: "0.2em", color: text, lineHeight: 1 }}
+        >
           VITA&nbsp;LUX
         </span>
         {showTagline ? (
-          <span style={{ fontFamily: "var(--font-sans)", fontSize: 8, fontWeight: 500, letterSpacing: "0.34em", color: tagline, marginTop: 4 }}>
+          <span
+            className="hidden md:block"
+            style={{ fontFamily: "var(--font-sans)", fontSize: 8, fontWeight: 500, letterSpacing: "0.34em", color: tagline, marginTop: 4 }}
+          >
             FEEL THE QUALITY
           </span>
         ) : null}
