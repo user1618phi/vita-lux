@@ -51,9 +51,10 @@ export default async function ProductsPage({
           className="block min-w-0 truncate"
           style={{ color: "var(--text-primary)", textDecoration: "none" }}
         >
-          {/* У черновика имя — это заглушка, которую синк поставил из артикула.
-              Печатать «VL-1303 VL-1303» незачем: показываем артикул один раз и
-              честно говорим, что названия для витрины ещё нет. */}
+          {/* У черновика имя — заглушка, которую синк поставил из артикула,
+              поэтому печатать «VL-1303 VL-1303» незачем: показываем артикул
+              один раз. Про отсутствие названия говорит колонка готовности —
+              повторять это здесь значит писать одно и то же дважды в строке. */}
           {checksFor(p).name ? (
             <>
               {p.name}
@@ -65,9 +66,7 @@ export default async function ProductsPage({
               ) : null}
             </>
           ) : (
-            <>
-              {p.sku ?? p.handle} <Muted>без названия</Muted>
-            </>
+            (p.sku ?? p.handle)
           )}
         </Link>
       ),
@@ -177,8 +176,7 @@ export default async function ProductsPage({
         empty={<Empty title="Ничего не нашлось" hint="Снимите фильтр или измените запрос." />}
         footer={
           <span style={{ fontSize: "var(--text-caption)", color: "var(--text-secondary)" }}>
-            Готовность: И — название, Р — раздел, Ф — фото, Ц — цена, О — остаток. Публиковать можно,
-            когда закрыты И, Р, Ф и Ц: товар под заказ продавать законно, без имени или цены — нет.
+            Всего: {groupDigits(rows.length)}
           </span>
         }
       />
