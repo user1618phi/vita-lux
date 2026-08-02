@@ -26,6 +26,10 @@ export default async function WarehousePage() {
   const admin = await currentAdmin();
   if (!admin) redirect("/login");
 
+  /* Ждём здесь, но экран целиком отдаётся не раньше: разделы ниже обёрнуты в
+     `Deferred`, и каждый гаснет отдельно. Полностью складской экран без X2pos
+     смысла не имеет, поэтому шапка у него тоже ждёт — но не дольше, чем один
+     самый медленный запрос вместо четырёх подряд. */
   const [accounts, customers, docs, sales] = await Promise.all([
     getAccounts(),
     getCustomers(),

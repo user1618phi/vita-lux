@@ -82,7 +82,18 @@ export async function findSoldOut(
   if (!isX2posEnabled() || tracked.length === 0) return [];
 
   try {
-    const stock = await createClient({ config: readConfig(), timeoutMs: 3_000 }).getStock();
+    /* Полторы секунды, не три.
+
+       Это самое чувствительное место во всей интеграции: покупатель уже нажал
+       «Оформить» и ждёт. X2pos отвечает из региона Vercel нестабильно, и
+       каждая секунда здесь — секунда, которую человек смотрит на крутилку в
+       момент, когда решение о покупке уже принято и его легче всего потерять.
+
+       Проверка всё равно страховочная: остаток обновляется кроном каждые пять
+       минут, а от гонки с кассой защищает буфер. Она ловит редкий случай
+       «продали минуту назад», и ради него нельзя рисковать оформлением. Не
+       уложились в полторы секунды — оформляем по данным своей базы. */
+    const stock = await createClient({ config: readConfig(), timeoutMs: 1_500 }).getStock();
     return tracked
       .filter((l) => {
         const qty = stock.get(l.externalId!) ?? 0;
@@ -149,7 +160,16 @@ export async function tryDeliverNow(): Promise<void> {
   if (!isX2posEnabled()) return;
   try {
     const { processOutbox } = await import("@vita/x2pos/sync/outbox");
-    await processOutbox({ db: db(), client: createClient({ config: readConfig(), timeoutMs: 4_000 }), limit: 5 });
+    /* Две секунды на попытку, и только на СВОЙ заказ (limit: 1).
+
+       Раньше здесь разбиралась вся очередь по пять записей за раз с таймаутом
+       в четыре секунды: покупатель ждал, пока система дошлёт чужие зависшие
+       заказы. Это не его работа и не его время — для очереди есть крон каждые
+       пять минут.
+
+       Смысл этой попытки только один: чтобы продавец увидел заказ в кассе
+       сразу, а не через пять минут. Не успели — ничего не потеряно. */
+    await processOutbox({ db: db(), client: createClient({ config: readConfig(), timeoutMs: 2_000 }), limit: 1 });
   } catch {
     /* Заберёт крон. Логировать нечего: в очереди заказы, а payload заказа
        проект не логирует ни при каких обстоятельствах. */
