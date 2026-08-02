@@ -29,6 +29,13 @@
       "when": 1785523070889,
       "tag": "0003_plain_xavin",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785685899351,
+      "tag": "0004_marvelous_stranger",
+      "breakpoints": true
     }
   ]
 }
