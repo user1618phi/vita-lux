@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
 import { currentAdmin } from "@/lib/auth";
 import Link from "next/link";
-import { listAdminProducts, listCategorySlugs, logoutAction } from "../actions";
+import { listAdminProducts, listCategorySlugs, logoutAction } from "@/app/actions";
 
 import { BulkForm } from "./BulkForm";
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useRef, useState, useTransition } from "react";
-import { deletePhotoAction, makeCoverAction, uploadPhotosAction } from "../media-actions";
+import { deletePhotoAction, makeCoverAction, uploadPhotosAction } from "@/app/media-actions";
 import { MAX_UPLOAD_BYTES, compressImage } from "@/lib/compress";
-import { Button, ConfirmButton, ErrorBox, SaveNotice } from "../ui";
+import { Button, ConfirmButton, ErrorBox, SaveNotice } from "@/app/ui";
 
 export function PhotoManager({
   productId,

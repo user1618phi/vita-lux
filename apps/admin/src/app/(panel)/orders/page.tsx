@@ -12,7 +12,7 @@ import {
 import { AppShell, Empty, Panel, Section } from "@/components/AppShell";
 import { DataTable, Muted, type Column } from "@/components/DataTable";
 import { StatRow, StatTile } from "@/components/StatTile";
-import { OrderStatusChip, inputStyle } from "../ui";
+import { OrderStatusChip, inputStyle } from "@/app/ui";
 import { getSales, summarize } from "@/lib/x2pos-read";
 import { listOrders, type OrderRow } from "./actions";
 import { ORDERS_PER_PAGE } from "./pagination";

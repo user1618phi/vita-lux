@@ -1,34 +1,13 @@
 import type { ReactNode } from "react";
-import { logoutAction } from "@/app/actions";
-import { currentAdmin } from "@/lib/auth";
-import { NavLink } from "./NavLink";
 
-/* Каркас админки.
+/* Заголовок экрана.
 
-   Панель управления складом — это не витрина. Витрина уговаривает, здесь же
-   человек сверяет строки и суммы, поэтому всё подчинено плотности: узкое
-   постоянное меню слева, широкое поле справа, никаких карточек вокруг каждой
-   строки.
+   Меню отсюда ушло в `PanelChrome`, который рисуется из layout группы
+   `(panel)`. Причина: layout переживает переход между страницами, а страница —
+   нет, и меню исчезало на всё время загрузки данных. Здесь остался только
+   заголовок конкретного экрана — он и должен меняться при навигации. */
 
-   Меню на `next/link`, а не на `<a>`: раньше каждое переключение вкладки было
-   полной перезагрузкой документа, а страницы админки — `force-dynamic` поверх
-   сетевого Postgres. Отсюда и `loading.tsx` с текстом «Загружаем…»: он
-   закрывал несколько секунд белизны, которых теперь просто нет. */
-
-const NAV = [
-  { href: "/", label: "Сводка" },
-  { href: "/products", label: "Товары" },
-  { href: "/orders", label: "Заказы" },
-  { href: "/warehouse", label: "Склад" },
-  { href: "/sync", label: "Обмен" },
-] as const;
-
-const NAV_SECONDARY = [
-  { href: "/settings", label: "Настройки" },
-  { href: "/account", label: "Профиль" },
-] as const;
-
-export async function AppShell({
+export function AppShell({
   title,
   subtitle,
   actions,
@@ -41,102 +20,33 @@ export async function AppShell({
   actions?: ReactNode;
   children: ReactNode;
 }) {
-  /* Кто вошёл, каркас выясняет сам. Раньше имя прокидывала каждая страница, и
-     добавить что-то в подвал меню значило пройти по всем экранам разом. */
-  const admin = await currentAdmin();
-  const username = admin?.username;
-
   return (
-    <div className="min-h-dvh md:flex">
-      {/* Меню. На ПК — колонка слева, на телефоне — полоса сверху: телефон
-          нужен посмотреть, а не редактировать, и отдавать ему треть экрана
-          под навигацию незачем. */}
-      <nav
-        className="shrink-0 md:sticky md:top-0 md:h-dvh md:w-[220px] md:border-r md:border-b-0 border-b"
-        style={{ borderColor: "var(--border)", background: "var(--surface-card)" }}
+    <>
+      <header
+        className="flex flex-wrap items-end justify-between gap-3 px-4 py-5 md:px-8 md:py-6"
+        style={{ borderBottom: "1px solid var(--border)" }}
       >
-        <div className="flex items-center gap-2 px-4 py-4 md:py-5">
-          <span
-            className="font-display"
-            style={{
-              fontSize: "var(--text-body-l)",
-              letterSpacing: "0.14em",
-              color: "var(--text-primary)",
-            }}
+        <div className="min-w-0">
+          <h1
+            className="m-0 font-display"
+            style={{ fontSize: "var(--text-title)", color: "var(--text-primary)" }}
           >
-            VITA&nbsp;LUX
-          </span>
-        </div>
-
-        <div className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:gap-0.5 md:overflow-visible md:pb-0">
-          {NAV.map((item) => (
-            <NavLink key={item.href} href={item.href} label={item.label} />
-          ))}
-          <div
-            className="my-2 hidden md:block"
-            style={{ borderTop: "1px solid var(--border)" }}
-          />
-          {NAV_SECONDARY.map((item) => (
-            <NavLink key={item.href} href={item.href} label={item.label} />
-          ))}
-        </div>
-
-        {username ? (
-          <div
-            className="mt-auto hidden px-4 py-4 md:block"
-            style={{ borderTop: "1px solid var(--border)" }}
-          >
-            <div
-              className="mb-2 truncate"
-              style={{ fontSize: "var(--text-micro)", color: "var(--text-secondary)" }}
+            {title}
+          </h1>
+          {subtitle ? (
+            <p
+              className="mt-1 mb-0"
+              style={{ fontSize: "var(--text-body-s)", color: "var(--text-secondary)" }}
             >
-              {username}
-            </div>
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                className="rounded-md px-2 py-1"
-                style={{
-                  fontSize: "var(--text-micro)",
-                  color: "var(--text-secondary)",
-                  border: "1px solid var(--border-control)",
-                  background: "transparent",
-                }}
-              >
-                Выйти
-              </button>
-            </form>
-          </div>
-        ) : null}
-      </nav>
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
+        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      </header>
 
-      <main className="min-w-0 flex-1">
-        <header
-          className="flex flex-wrap items-end justify-between gap-3 px-4 py-5 md:px-8 md:py-6"
-          style={{ borderBottom: "1px solid var(--border)" }}
-        >
-          <div className="min-w-0">
-            <h1
-              className="m-0 font-display"
-              style={{ fontSize: "var(--text-title)", color: "var(--text-primary)" }}
-            >
-              {title}
-            </h1>
-            {subtitle ? (
-              <p
-                className="mt-1 mb-0"
-                style={{ fontSize: "var(--text-body-s)", color: "var(--text-secondary)" }}
-              >
-                {subtitle}
-              </p>
-            ) : null}
-          </div>
-          {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-        </header>
-
-        <div className="mx-auto w-full max-w-[1440px] px-4 py-5 pb-24 md:px-8">{children}</div>
-      </main>
-    </div>
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-5 pb-24 md:px-8">{children}</div>
+    </>
   );
 }
 

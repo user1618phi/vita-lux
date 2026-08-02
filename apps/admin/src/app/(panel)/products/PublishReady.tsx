@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button, SaveNotice } from "../ui";
+import { Button, SaveNotice } from "@/app/ui";
 import { publishReadyAction } from "./publish-action";
 
 /* Пакетная публикация.

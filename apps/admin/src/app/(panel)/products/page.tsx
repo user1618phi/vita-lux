@@ -4,7 +4,7 @@ import { groupDigits } from "@vita/core/format";
 import { currentAdmin } from "@/lib/auth";
 import { AppShell, Empty } from "@/components/AppShell";
 import { DataTable, Muted, type Column } from "@/components/DataTable";
-import { ErrorBox, StockChip, inputStyle } from "../ui";
+import { ErrorBox, StockChip, inputStyle } from "@/app/ui";
 import { checksFor, listProducts, publishable, type ProductRow } from "./readiness";
 import { ReadyMarks } from "./ReadyMarks";
 import { PublishReady } from "./PublishReady";

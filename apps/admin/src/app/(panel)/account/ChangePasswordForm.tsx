@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { changePasswordAction } from "./actions";
-import { Button, ErrorBox, Field, OkBox, inputStyle } from "../ui";
+import { Button, ErrorBox, Field, OkBox, inputStyle } from "@/app/ui";
 
 export function ChangePasswordForm() {
   const [state, action, pending] = useActionState(

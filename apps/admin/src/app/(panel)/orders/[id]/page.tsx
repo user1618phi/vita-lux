@@ -5,8 +5,8 @@ import { currentAdmin } from "@/lib/auth";
 import { groupDigits } from "@vita/core/format";
 import { formatKzPhone } from "@vita/core/phone-kz";
 import { DELIVERY_LABEL, NOTIFY_LABEL, PAYMENT_LABEL } from "@vita/core/order/labels";
-import { logoutAction } from "../../actions";
-import { ErrorBox, OrderStatusChip } from "../../ui";
+import { logoutAction } from "@/app/actions";
+import { ErrorBox, OrderStatusChip } from "@/app/ui";
 import { getOrder } from "../actions";
 import { OrderForms } from "./OrderForms";
 

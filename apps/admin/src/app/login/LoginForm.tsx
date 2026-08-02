@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { loginAction } from "../actions";
-import { Button, ErrorBox, Field, inputStyle } from "../ui";
+import { loginAction } from "@/app/actions";
+import { Button, ErrorBox, Field, inputStyle } from "@/app/ui";
 
 export function LoginForm() {
   const [state, action, pending] = useActionState(loginAction, null as { error?: string } | null);

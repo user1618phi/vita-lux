@@ -8,7 +8,7 @@ import {
   toggleAccountAction,
   type AccountRow,
 } from "./actions";
-import { Button, ConfirmButton, ErrorBox, Field, OkBox, inputStyle } from "../ui";
+import { Button, ConfirmButton, ErrorBox, Field, OkBox, inputStyle } from "@/app/ui";
 
 function fmt(d: Date | null): string {
   return d ? new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(d) : "—";

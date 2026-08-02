@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { ORDER_STATUS_FLOW, ORDER_STATUS_LABEL, type OrderStatus } from "@vita/core/order/labels";
 import { saveAdminNoteAction, setOrderStatusAction } from "../actions";
-import { Button, ErrorBox, Field, OkBox, inputStyle } from "../../ui";
+import { Button, ErrorBox, Field, OkBox, inputStyle } from "@/app/ui";
 
 /* Смена статуса и заметка. Оба действия дают обратную связь: раньше формы
    админки, отправлявшие экшен напрямую, при сбое молча ничего не делали, и

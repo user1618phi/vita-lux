@@ -3,7 +3,7 @@ import { PageShell } from "@/components/PageShell";
 import { redirect } from "next/navigation";
 import { db, schema } from "@vita/db/client";
 import { currentAdmin } from "@/lib/auth";
-import { logoutAction } from "../../actions";
+import { logoutAction } from "@/app/actions";
 
 import { ProductForm, type ProductFormValues } from "../ProductForm";
 
