@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { bulkUpdateAction, type AdminProductRow } from "../actions";
-import { Button, ErrorBox, SaveNotice, inputStyle } from "../ui";
+import { bulkUpdateAction, type AdminProductRow } from "@/app/actions";
+import { Button, ErrorBox, SaveNotice, inputStyle } from "@/app/ui";
 
 /* The screen that decides whether a real person keeps using this tool.
 

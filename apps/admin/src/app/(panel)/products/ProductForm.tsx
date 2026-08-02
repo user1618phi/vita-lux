@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { saveProductAction, toggleVisibilityAction } from "../actions";
-import { Button, ErrorBox, Field, SaveNotice, inputStyle } from "../ui";
+import { saveProductAction, toggleVisibilityAction } from "@/app/actions";
+import { Button, ErrorBox, Field, SaveNotice, inputStyle } from "@/app/ui";
 import { PhotoManager } from "./PhotoManager";
 
 /* Product editor.

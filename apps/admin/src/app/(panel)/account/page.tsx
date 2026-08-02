@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
 import { currentAdmin } from "@/lib/auth";
-import { logoutAction } from "../actions";
+import { logoutAction } from "@/app/actions";
 
 import { ChangePasswordForm } from "./ChangePasswordForm";
 

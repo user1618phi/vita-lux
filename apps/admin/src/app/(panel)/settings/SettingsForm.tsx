@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { saveSettingsAction } from "../actions";
-import { Button, ErrorBox, Field, SaveNotice, inputStyle } from "../ui";
+import { saveSettingsAction } from "@/app/actions";
+import { Button, ErrorBox, Field, SaveNotice, inputStyle } from "@/app/ui";
 
 export interface SettingGroup {
   title: string;

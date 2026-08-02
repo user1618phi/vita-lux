@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Button, ErrorBox, OkBox } from "../ui";
+import { Button, ErrorBox, OkBox } from "@/app/ui";
 import { runSyncAction } from "./actions";
 
 const JOBS = [

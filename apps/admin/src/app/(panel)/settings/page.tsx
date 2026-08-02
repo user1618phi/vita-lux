@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
 import { db, schema } from "@vita/db/client";
 import { can, currentAdmin } from "@/lib/auth";
-import { logoutAction } from "../actions";
+import { logoutAction } from "@/app/actions";
 
 import { SettingsForm, type SettingGroup } from "./SettingsForm";
 

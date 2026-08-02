@@ -6,7 +6,7 @@ import { listDrafts } from "@vita/x2pos/sync/catalog";
 import { CURSOR_LAST_REPORT, CURSOR_LAST_RUN, readState } from "@vita/x2pos/sync/state";
 import type { SyncReport } from "@vita/x2pos/sync/report";
 import { currentAdmin } from "@/lib/auth";
-import { ErrorBox } from "../ui";
+import { ErrorBox } from "@/app/ui";
 import { AppShell, Empty, Panel, Section } from "@/components/AppShell";
 import { RunButtons } from "./RunButtons";
 
