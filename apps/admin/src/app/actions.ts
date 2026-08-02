@@ -200,6 +200,17 @@ const productSchema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Только латиница в нижнем регистре, цифры и дефис"),
   nameRu: z.string().trim().min(1, "Укажите название по-русски"),
   nameKk: z.string().trim().min(1, "Укажите название по-казахски"),
+  /* Описание и SEO. CLAUDE.md давно закрепил их за админкой, но полей в форме
+     не было — товар из X2pos приезжал вообще без текста, и страница уходила в
+     поиск с пустым описанием.
+
+     Ограничения по длине не косметика: заголовок длиннее ~60 знаков поисковик
+     обрежет, описание — примерно на 160. Лучше подсказать границу здесь, чем
+     увидеть обрезанное в выдаче. */
+  descriptionRu: z.string().trim().max(4000).optional(),
+  descriptionKk: z.string().trim().max(4000).optional(),
+  seoTitleRu: z.string().trim().max(70).optional(),
+  seoDescriptionRu: z.string().trim().max(180).optional(),
   sku: z.string().trim().min(1, "Укажите артикул"),
   categorySlug: z.string().trim().min(1),
   collectionSlug: z.string().trim().optional(),
@@ -297,11 +308,31 @@ export async function saveProductAction(
     id = row.id;
   }
 
-  for (const [locale, name] of [["ru", v.nameRu], ["kk", v.nameKk]] as const) {
+  /* SEO пишем только для русской версии: казахская страница пока живёт без
+     собственных мета-тегов, и подставлять туда русский текст хуже, чем не
+     подставлять ничего. Появится казахское SEO — добавится вторая пара полей. */
+  const i18n = [
+    {
+      locale: "ru" as const,
+      name: v.nameRu,
+      descriptionMd: v.descriptionRu || null,
+      seoTitle: v.seoTitleRu || null,
+      seoDescription: v.seoDescriptionRu || null,
+    },
+    {
+      locale: "kk" as const,
+      name: v.nameKk,
+      descriptionMd: v.descriptionKk || null,
+      seoTitle: null,
+      seoDescription: null,
+    },
+  ];
+  for (const row of i18n) {
+    const { locale, ...rest } = row;
     await db()
       .insert(productI18n)
-      .values({ productId: id, locale, name })
-      .onConflictDoUpdate({ target: [productI18n.productId, productI18n.locale], set: { name } });
+      .values({ productId: id, locale, ...rest })
+      .onConflictDoUpdate({ target: [productI18n.productId, productI18n.locale], set: rest });
   }
 
   const [existingVariant] = await db()

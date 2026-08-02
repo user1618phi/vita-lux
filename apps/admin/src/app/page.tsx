@@ -1,10 +1,17 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import { db, schema } from "@vita/db/client";
 import { formatTenge, groupDigits } from "@vita/core/format";
 import { currentAdmin } from "@/lib/auth";
-import { getAccounts, getCustomers, getSales, summarize, topProducts, weekly } from "@/lib/x2pos-read";
+import {
+  getAccounts,
+  getCustomers,
+  getSales,
+  summarize,
+  topProducts,
+  weeklyCombined,
+} from "@/lib/x2pos-read";
 import { AppShell, Empty, Panel, Section } from "@/components/AppShell";
 import { StatRow, StatTile } from "@/components/StatTile";
 import { BarList } from "@/components/charts/BarList";
@@ -26,11 +33,12 @@ export default async function DashboardPage() {
   const admin = await currentAdmin();
   if (!admin) redirect("/login");
 
-  const [sales, customers, accounts, readiness] = await Promise.all([
+  const [sales, customers, accounts, readiness, site] = await Promise.all([
     getSales(),
     getCustomers(),
     getAccounts(),
     catalogReadiness(),
+    siteOrders(),
   ]);
 
   const s = sales.ok ? summarize(sales.data) : null;
@@ -66,18 +74,17 @@ export default async function DashboardPage() {
           tone="success"
           caption={accounts.ok ? `${accounts.data.length} счёта в X2pos` : undefined}
         />
+        {/* Продажи сайта — по СВОИМ заказам, а не по X2pos: заказ доезжает
+            туда через очередь, и до тех пор сайт выглядел бы беднее, чем есть. */}
         <StatTile
           label="Продажи сайта"
-          value={s ? formatTenge(s.siteRevenue) : "—"}
-          unavailable={!s}
-          fraction={s && s.revenue > 0 ? s.siteRevenue / s.revenue : undefined}
+          value={formatTenge(site.revenue)}
+          fraction={s && s.revenue + site.revenue > 0 ? site.revenue / (s.storeRevenue + site.revenue) : undefined}
           tone="site"
           caption={
-            s
-              ? s.siteCount > 0
-                ? `${s.siteCount} из ${s.count} продаж`
-                : "сайт ещё не продавал — весь оборот через магазин"
-              : undefined
+            site.count > 0
+              ? `${site.count} заказов · не доехало в X2pos ${site.notSynced}`
+              : "сайт ещё не продавал — весь оборот через магазин"
           }
         />
         <StatTile
@@ -93,11 +100,11 @@ export default async function DashboardPage() {
 
       <Section
         title="Продажи по неделям"
-        hint="Сайт и магазин продают один и тот же склад. Разделено по метке источника продажи в X2pos."
+        hint="Один склад, два канала. Сайт считается по своим заказам, магазин — по продажам X2pos через кассу."
       >
         <Panel>
           {sales.ok ? (
-            <TimeSeries data={weekly(sales.data)} />
+            <TimeSeries data={weeklyCombined(sales.data, site.rows)} />
           ) : (
             <Unavailable reason={sales.reason} />
           )}
@@ -199,6 +206,25 @@ export default async function DashboardPage() {
       </Section>
     </AppShell>
   );
+}
+
+/* Заказы сайта из своей базы. Отменённые не в счёт: денег по ним не будет. */
+async function siteOrders() {
+  const rows = await db()
+    .select({
+      date: schema.order.createdAt,
+      totalKzt: schema.order.totalKzt,
+      x2posOrderId: schema.order.x2posOrderId,
+    })
+    .from(schema.order)
+    .where(ne(schema.order.status, "cancelled"));
+
+  return {
+    rows: rows.map((r) => ({ date: r.date, totalKzt: r.totalKzt })),
+    revenue: rows.reduce((a, r) => a + r.totalKzt, 0),
+    count: rows.length,
+    notSynced: rows.filter((r) => !r.x2posOrderId).length,
+  };
 }
 
 function Unavailable({ reason }: { reason: string }) {

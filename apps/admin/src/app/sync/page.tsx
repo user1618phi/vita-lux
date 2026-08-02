@@ -179,6 +179,14 @@ export default async function SyncPage() {
           </ul>
         )}
       </Section>
+      <Section
+        title="Журнал действий"
+        hint="Кто и что менял. Персональных данных здесь нет: в журнал пишутся счётчики и имена полей, но никогда значения."
+      >
+        <Panel>
+          <AuditLog />
+        </Panel>
+      </Section>
     </AppShell>
   );
 }
@@ -208,4 +216,94 @@ function EmptyText({ children }: { children: React.ReactNode }) {
       {children}
     </p>
   );
+}
+
+/* ── журнал действий ───────────────────────────────────────────────────── */
+
+/* `audit_log` писался с самого начала и не читался нигде: каждая правка цены,
+   каждое открытие карточки с персональными данными, каждый прогон обмена
+   оставляли строку, которую невозможно было увидеть. Журнал, в который нельзя
+   заглянуть, не выполняет ни одной из своих задач.
+
+   Расшифрованных ПД здесь нет и быть не может — правило соблюдается на
+   стороне записи: в `before_json`/`after_json` кладут счётчики и имена полей,
+   но не значения. */
+export async function AuditLog() {
+  const rows = await db()
+    .select({
+      id: schema.auditLog.id,
+      entity: schema.auditLog.entity,
+      entityId: schema.auditLog.entityId,
+      action: schema.auditLog.action,
+      at: schema.auditLog.at,
+      after: schema.auditLog.afterJson,
+      who: schema.adminUser.username,
+    })
+    .from(schema.auditLog)
+    .leftJoin(schema.adminUser, eq(schema.adminUser.id, schema.auditLog.adminUserId))
+    .orderBy(desc(schema.auditLog.at))
+    .limit(40);
+
+  if (rows.length === 0) {
+    return (
+      <p className="m-0 px-4 py-6" style={{ color: "var(--text-secondary)" }}>
+        Пока пусто.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="m-0 list-none p-0">
+      {rows.map((r) => (
+        <li
+          key={r.id}
+          className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2"
+          style={{ borderBottom: "1px solid var(--border)" }}
+        >
+          <span style={{ fontSize: "var(--text-body-s)", color: "var(--text-primary)" }}>
+            {ACTION_LABEL[`${r.entity}.${r.action}`] ?? `${r.entity} · ${r.action}`}
+            {r.who ? (
+              <span style={{ color: "var(--text-secondary)" }}> · {r.who}</span>
+            ) : (
+              <span style={{ color: "var(--text-secondary)" }}> · система</span>
+            )}
+          </span>
+          <span className="vl-mono shrink-0" style={{ fontSize: "var(--text-caption)", color: "var(--text-secondary)" }}>
+            {summarizeAudit(r.after)}
+            {"  "}
+            {formatWhen(r.at.toISOString())}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const ACTION_LABEL: Record<string, string> = {
+  "x2pos.sync.run": "Обмен выполнен",
+  "x2pos.sync.skipped": "Обмен: изменений не было",
+  "x2pos.sync.trigger": "Обмен запущен вручную",
+  "product.create": "Товар создан",
+  "product.update": "Товар изменён",
+  "product.visibility": "Видимость товара изменена",
+  "product.bulk-publish": "Товары опубликованы пакетно",
+  "variant.bulk-update": "Цены и наличие изменены",
+  "media.upload": "Загружены фотографии",
+  "media.delete": "Фотография удалена",
+  "media.make-cover": "Выбрана обложка",
+  "order.status": "Статус заказа изменён",
+  "order.note": "Заметка к заказу",
+  "order.pii-view": "Открыты данные покупателя",
+  "order.x2pos.return": "Возврат в X2pos",
+  "admin_user.password-change": "Смена пароля",
+};
+
+/* Из json показываем только счётчики — это ровно то, что туда кладут. */
+function summarizeAudit(after: unknown): string {
+  if (!after || typeof after !== "object") return "";
+  const parts: string[] = [];
+  for (const [k, v] of Object.entries(after as Record<string, unknown>)) {
+    if (typeof v === "number" && v > 0) parts.push(`${k} ${v}`);
+  }
+  return parts.slice(0, 3).join(" · ");
 }

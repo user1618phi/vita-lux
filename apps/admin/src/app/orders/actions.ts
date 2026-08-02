@@ -40,6 +40,8 @@ export interface OrderRow {
   notifyStatus: "pending" | "sent" | "failed";
   createdAt: Date;
   items: number;
+  /** Номер продажи в X2pos. null — заказ туда ещё не доехал. */
+  x2posOrderId: string | null;
 }
 
 /**
@@ -100,6 +102,7 @@ export async function listOrders(opts: {
       notifyStatus: order.notifyStatus,
       createdAt: order.createdAt,
       items: count(orderItem.id),
+      x2posOrderId: order.x2posOrderId,
     })
     .from(order)
     .leftJoin(orderItem, eq(orderItem.orderId, order.id))
