@@ -467,3 +467,86 @@ export const x2posSyncState = pgTable("x2pos_sync_state", {
   value: jsonb("value").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/* ── зеркало справочников X2pos ────────────────────────────────────────── */
+
+/* Почему это вообще существует.
+
+   Админка читала продажи, клиентов, счета и документы прямо из X2pos на
+   каждый рендер. Из региона Vercel он отвечает дольше, чем serverless-функции
+   отведено времени, и панель регулярно падала в «данные не получены» — при
+   живом и исправном складе.
+
+   Гоняться за скоростью запросов было бесполезно: проблема не в них, а в том,
+   что отрисовка страницы зависела от внешнего сервиса. Теперь данные тянет
+   воркер на Railway — он рядом, без лимита на время выполнения и по
+   расписанию, — а панель читает своё же Postgres.
+
+   Это ЗЕРКАЛО, а не источник правды: писать сюда может только синхронизация,
+   любая правка делается в самом X2pos. `syncedAt` у каждой строки, чтобы
+   панель честно показывала возраст цифр, а не выдавала вчерашнее за сейчас. */
+
+export const x2posSale = pgTable(
+  "x2pos_sale",
+  {
+    /* ID продажи в X2pos — он же ключ: зеркало не заводит своих. */
+    id: text("id").primaryKey(),
+    soldAt: timestamp("sold_at", { withTimezone: true }),
+    totalKzt: integer("total_kzt").notNull().default(0),
+    paidKzt: integer("paid_kzt").notNull().default(0),
+    status: text("status"),
+    /* Возврат лежит в том же списке, что и продажа. В выручку не идёт. */
+    isReturn: boolean("is_return").notNull().default(false),
+    /* Продажа пришла с сайта (наш `channel`), а не из кассы магазина. */
+    fromSite: boolean("from_site").notNull().default(false),
+    customerName: text("customer_name"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("x2pos_sale_date_idx").on(t.soldAt), index("x2pos_sale_site_idx").on(t.fromSite)],
+);
+
+export const x2posSaleItem = pgTable(
+  "x2pos_sale_item",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    saleId: text("sale_id")
+      .notNull()
+      .references(() => x2posSale.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    vendorCode: text("vendor_code"),
+    qty: numeric("qty", { precision: 12, scale: 3 }).notNull().default("0"),
+    totalKzt: integer("total_kzt").notNull().default(0),
+  },
+  (t) => [index("x2pos_sale_item_sale_idx").on(t.saleId)],
+);
+
+export const x2posCustomer = pgTable("x2pos_customer", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  city: text("city"),
+  /* Положительное — столько клиент должен. В X2pos хранится отрицательным. */
+  debtKzt: integer("debt_kzt").notNull().default(0),
+  syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const x2posAccount = pgTable("x2pos_account", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type"),
+  amountKzt: integer("amount_kzt").notNull().default(0),
+  currency: text("currency").notNull().default("KZT"),
+  syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const x2posDoc = pgTable("x2pos_doc", {
+  id: text("id").primaryKey(),
+  action: text("action").notNull(), // acceptance | move | writeoff | revision
+  status: text("status").notNull(), // draft | completed | canceled | waiting_to_confirm
+  docDate: text("doc_date"),
+  quantity: numeric("quantity", { precision: 12, scale: 3 }).notNull().default("0"),
+  amountKzt: integer("amount_kzt").notNull().default(0),
+  supplier: text("supplier"),
+  items: integer("items").notNull().default(0),
+  syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+});

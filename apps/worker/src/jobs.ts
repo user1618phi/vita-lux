@@ -12,12 +12,13 @@ import { ensureInboxCategory, syncCatalog } from "@vita/x2pos/sync/catalog";
 import { syncMedia } from "@vita/x2pos/sync/media";
 import { syncStock } from "@vita/x2pos/sync/stock";
 import { processOutbox } from "@vita/x2pos/sync/outbox";
+import { mirrorReference } from "@vita/x2pos/sync/mirror";
 import { summarize, type SyncReport } from "@vita/x2pos/sync/report";
 import { CURSOR_LAST_REPORT, CURSOR_LAST_RUN, writeState } from "@vita/x2pos/sync/state";
 import { publishTags } from "./revalidate.ts";
 
-export type JobName = "stock" | "catalog" | "media" | "outbox";
-export const JOB_NAMES: JobName[] = ["stock", "catalog", "media", "outbox"];
+export type JobName = "stock" | "catalog" | "media" | "outbox" | "mirror";
+export const JOB_NAMES: JobName[] = ["stock", "catalog", "media", "outbox", "mirror"];
 
 export interface JobResult {
   job: JobName;
@@ -93,6 +94,20 @@ export async function runJob(job: JobName, opts: { force?: boolean } = {}): Prom
         const report = await syncMedia({ db: d, client: client(), limit: 25 });
         await finish(job, report, report.mediaImported > 0);
         return done(job, started, report.errors.length === 0, summarize(report));
+      }
+      case "mirror": {
+        /* Зеркалит справочники X2pos в нашу базу, чтобы админка читала своё
+           Postgres, а не ходила в Казахстан на каждый рендер. Ревалидация
+           витрины тут не нужна: покупателю эти данные не показываются. */
+        const report = await mirrorReference({ db: d, client: client() });
+        await writeState(d, CURSOR_LAST_RUN, { kind: job, at: new Date().toISOString() });
+        await writeState(d, `${CURSOR_LAST_REPORT}.${job}`, report as unknown);
+        return done(
+          job,
+          started,
+          report.errors.length === 0,
+          report.errors.length ? `ошибок ${report.errors.length}` : `продаж ${report.productsSeen}`,
+        );
       }
       case "outbox": {
         const r = await processOutbox({ db: d, client: client() });

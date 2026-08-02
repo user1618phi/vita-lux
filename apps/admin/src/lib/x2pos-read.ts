@@ -1,176 +1,58 @@
 import "server-only";
-import { unstable_cache } from "next/cache";
-import { createClient } from "@vita/x2pos/client";
-import { isX2posEnabled, readConfig } from "@vita/x2pos/config";
-import { toKzt, toQty } from "@vita/x2pos/map";
+import { desc, sql } from "drizzle-orm";
+import { db, schema } from "@vita/db/client";
 
-/* Чтение X2pos для админки.
+/* Данные склада для админки — из СВОЕЙ базы, не из X2pos.
 
-   Два правила, и оба важнее удобства.
+   Раньше каждый экран ходил в X2pos напрямую. Из региона Vercel он отвечает
+   дольше, чем serverless-функции отведено времени, и панель регулярно писала
+   «данные не получены» при живом складе. Оптимизировать там было нечего:
+   проблема не в скорости запросов, а в самой зависимости отрисовки страницы
+   от внешнего сервиса.
 
-   ПЕРВОЕ: ни один экран не падает из-за X2pos. Он внешний сервис, и когда он
-   недоступен, панель обязана показать «данные не получены» и остаться
-   работоспособной в остальном. Поэтому каждая функция возвращает
-   `Result<T>` — либо данные, либо причина, — и никогда не бросает.
+   Теперь справочники зеркалит воркер на Railway (`@vita/x2pos/sync/mirror`) —
+   он рядом с X2pos, не ограничен временем и ходит по расписанию. Здесь
+   остались обычные SELECT'ы: миллисекунды, никаких таймаутов и никакого кэша —
+   Postgres и есть кэш.
 
-   ВТОРОЕ: кэш. Страницы админки `force-dynamic`, и без кэша каждый рендер
-   Сводки означал бы шесть запросов в X2pos. Держим 60 секунд: свежее, чем
-   любой отчёт, и на порядок дешевле.
+   Плата — возраст данных до десяти минут. Он не прячется: `mirrorAge()`
+   возвращает его словами, и панель показывает это рядом с цифрами. Дашборд,
+   который выдаёт десятиминутную цифру за «сейчас», хуже дашборда, который
+   честно говорит, когда обновлялся.
 
-   Ловушка API, на которую легко напороться: `/api/customers` ИГНОРИРУЕТ
-   параметр `page` — вторая и третья страницы отдают тех же 33 клиентов, что
-   и первая. Пагинацию по клиентам строить нельзя, проверено на боевом
-   аккаунте. */
-
-export type Result<T> = { ok: true; data: T } | { ok: false; reason: string };
-
-const TTL = 60;
-
-/** Обёртка: кэш + гарантия, что наружу не вылетит исключение. */
-function cached<T>(key: string, load: () => Promise<T>) {
-  const run = unstable_cache(
-    async (): Promise<Result<T>> => {
-      if (!isX2posEnabled()) return { ok: false, reason: "Интеграция с X2pos выключена" };
-      try {
-        return { ok: true, data: await load() };
-      } catch (e) {
-        /* Тела запросов не логируем — в продажах персональные данные. */
-        return { ok: false, reason: e instanceof Error ? e.message : "X2pos недоступен" };
-      }
-    },
-    ["x2pos-read", key],
-    { revalidate: TTL, tags: [`x2pos:${key}`] },
-  );
-  return run;
-}
-
-function client() {
-  return createClient({ config: readConfig() });
-}
-
-/* ── продажи ───────────────────────────────────────────────────────────── */
+   Агрегации считает Postgres, а не Node: тянуть сотни строк, чтобы сложить их
+   в JavaScript, незачем — и перестанет работать, когда продаж станут тысячи. */
 
 export interface Sale {
   id: string;
-  date: string;
+  date: Date | null;
   total: number;
   paid: number;
-  status: string;
-  /** Возврат, а не продажа: в выручку не идёт. */
-  isReturn: boolean;
-  /** true — продажа пришла с сайта (channel = наш), иначе магазин. */
-  fromSite: boolean;
+  status: string | null;
   customerName: string | null;
-  items: { name: string; vendorCode: string | null; qty: number; total: number }[];
 }
-
-export const getSales = cached("sales", async (): Promise<Sale[]> => {
-  const c = client();
-  const channel = c.config.channel.toLowerCase();
-  const out: Sale[] = [];
-
-  /* Страницы тянутся ПАЧКАМИ ПАРАЛЛЕЛЬНО, а не цепочкой.
-
-     Раньше это был цикл `await` по одной странице: пять последовательных
-     round-trip'ов до Казахстана. С машины разработчика — полторы секунды, из
-     serverless-региона Vercel — уже за таймаут, и панель писала «данные не
-     получены. This operation was aborted».
-
-     Пачка в 5 страниц покрывает 250 продаж за время одного запроса. Если
-     пачка вернулась полной, берём следующую — так выборка остаётся полной при
-     любом объёме, но платим за это только когда продаж действительно много.
-
-     Потолок в 20 страниц — предохранитель от бесконечного цикла. Когда продаж
-     станет за тысячу, дешевле будет зеркалить их в свою базу отдельным джобом,
-     чем тянуть живьём на каждый рендер. */
-  const BATCH = 5;
-  for (let first = 1; first <= 20; first += BATCH) {
-    const batch = await Promise.all(
-      Array.from({ length: BATCH }, (_, k) => c.listOrders(first + k)),
-    );
-    const rows = batch.flat();
-    for (const r of rows) {
-      if (r.is_deleted === "1") continue;
-      out.push({
-        id: r.id,
-        date: r.order_date ?? "",
-        total: Number(r.total ?? 0),
-        paid: Number(r.total_paid ?? 0),
-        status: r.status ?? "",
-        isReturn: r.is_return === "1",
-        fromSite: (r.channel ?? "").toLowerCase() === channel,
-        customerName: r.customer_name || null,
-        items: Object.values(r.order_items ?? {}).map((it) => ({
-          name: (it.product_name ?? "—").trim() || "—",
-          vendorCode: it.product_vendor_code || null,
-          qty: Number(it.quantity ?? 0),
-          total: Number(it.total ?? 0),
-        })),
-      });
-    }
-    /* Последняя страница пачки пуста — дальше данных нет. */
-    if (batch[batch.length - 1].length === 0) break;
-  }
-  return out;
-});
-
-/* ── клиенты и долги ───────────────────────────────────────────────────── */
 
 export interface Customer {
   id: string;
   name: string;
   phone: string | null;
   city: string | null;
-  /** Положительное число — столько клиент должен. */
   debt: number;
 }
-
-export const getCustomers = cached("customers", async (): Promise<Customer[]> => {
-  /* Одна страница и есть весь список — см. про `page` в шапке файла. */
-  const rows = await client().listCustomers();
-  return rows
-    .map((r) => ({
-      id: r.id,
-      name: (r.customer_name || r.company_name || "Без имени").trim(),
-      phone: r.tel ?? null,
-      city: r.kato_text ?? null,
-      /* В X2pos долг клиента хранится отрицательным. Наружу отдаём
-         положительное «сколько должен» — так его читают и сравнивают. */
-      debt: Math.max(0, -Number(r.debt ?? 0)),
-    }))
-    .sort((a, b) => b.debt - a.debt);
-});
-
-/* ── денежные счета ────────────────────────────────────────────────────── */
 
 export interface Account {
   id: string;
   name: string;
-  type: string;
+  type: string | null;
   amount: number;
   currency: string;
 }
-
-export const getAccounts = cached("accounts", async (): Promise<Account[]> => {
-  const rows = await client().listAccounts();
-  return rows
-    .map((r) => ({
-      id: r.id,
-      name: r.name,
-      type: r.type,
-      amount: Number(r.amount ?? 0),
-      currency: r.currency ?? "KZT",
-    }))
-    .sort((a, b) => b.amount - a.amount);
-});
-
-/* ── документы склада ──────────────────────────────────────────────────── */
 
 export interface Doc {
   id: string;
   action: string;
   status: string;
-  date: string;
+  date: string | null;
   quantity: number;
   amount: number;
   supplier: string | null;
@@ -184,139 +66,186 @@ const ACTION_LABEL: Record<string, string> = {
   revision: "Ревизия",
 };
 
-export const getDocs = cached("procurements", async (): Promise<Doc[]> => {
-  const rows = await client().listProcurements();
-  return rows
-    .map((r) => ({
-      id: r.id,
-      action: ACTION_LABEL[r.action] ?? r.action,
-      status: r.status,
-      date: (r.procurement_date ?? "").slice(0, 10),
-      quantity: Number(r.total_quantity ?? 0),
-      amount: Number(r.total_amount ?? 0),
-      supplier: r.supplier_name || null,
-      items: Object.keys(r.procurement_items ?? {}).length,
-    }))
-    .sort((a, b) => b.date.localeCompare(a.date));
-});
-
-/* ── остатки ───────────────────────────────────────────────────────────── */
-
-export const getStock = cached("stock", async (): Promise<Record<string, number>> => {
-  const map = await client().getStock();
-  return Object.fromEntries(map);
-});
-
-/* ── производные показатели ────────────────────────────────────────────── */
+/* ── сводные показатели ────────────────────────────────────────────────── */
 
 export interface SalesSummary {
-  /** Всего продаж за всё время. */
   count: number;
   revenue: number;
   paid: number;
-  /** Выручка минус оплаченное. НЕ то же, что сумма поля `debt` у клиентов. */
+  /** Выручка минус оплаченное. НЕ то же, что сумма долгов по карточкам клиентов. */
   unpaid: number;
-  siteRevenue: number;
   storeRevenue: number;
-  siteCount: number;
-  firstDate: string | null;
-  lastDate: string | null;
+  firstDate: Date | null;
+  lastDate: Date | null;
 }
 
-export function summarize(all: Sale[]): SalesSummary {
-  /* Возвраты в X2pos лежат в том же списке, что и продажи. Считать их
-     выручкой нельзя — иначе отменённая отгрузка увеличивает оборот. */
-  const sales = all.filter((s) => !s.isReturn);
-  const dates = sales.map((s) => s.date).filter(Boolean).sort();
-  const revenue = sales.reduce((a, s) => a + s.total, 0);
-  const paid = sales.reduce((a, s) => a + s.paid, 0);
+export async function salesSummary(): Promise<SalesSummary> {
+  const [row] = await db()
+    .select({
+      count: sql<number>`count(*) filter (where not is_return)::int`,
+      revenue: sql<number>`coalesce(sum(total_kzt) filter (where not is_return), 0)::int`,
+      paid: sql<number>`coalesce(sum(paid_kzt) filter (where not is_return), 0)::int`,
+      storeRevenue: sql<number>`coalesce(sum(total_kzt) filter (where not is_return and not from_site), 0)::int`,
+      firstDate: sql<string | null>`min(sold_at)`,
+      lastDate: sql<string | null>`max(sold_at)`,
+    })
+    .from(schema.x2posSale);
+
+  const revenue = Number(row?.revenue ?? 0);
+  const paid = Number(row?.paid ?? 0);
   return {
-    count: sales.length,
+    count: Number(row?.count ?? 0),
     revenue,
     paid,
     unpaid: revenue - paid,
-    siteRevenue: sales.filter((s) => s.fromSite).reduce((a, s) => a + s.total, 0),
-    storeRevenue: sales.filter((s) => !s.fromSite).reduce((a, s) => a + s.total, 0),
-    siteCount: sales.filter((s) => s.fromSite).length,
-    firstDate: dates[0] ?? null,
-    lastDate: dates[dates.length - 1] ?? null,
+    storeRevenue: Number(row?.storeRevenue ?? 0),
+    firstDate: row?.firstDate ? new Date(row.firstDate) : null,
+    lastDate: row?.lastDate ? new Date(row.lastDate) : null,
   };
 }
 
-/** Продажи по неделям за последние `weeks` недель, разделённые на сайт и магазин. */
-export function weekly(sales: Sale[], weeks = 12): { label: string; site: number; store: number }[] {
-  const now = new Date();
-  const buckets: { label: string; site: number; store: number; from: Date; to: Date }[] = [];
-
-  for (let i = weeks - 1; i >= 0; i--) {
-    const to = new Date(now);
-    to.setDate(to.getDate() - i * 7);
-    const from = new Date(to);
-    from.setDate(from.getDate() - 7);
-    buckets.push({ label: shortDate(to), site: 0, store: 0, from, to });
-  }
-
-  for (const s of sales) {
-    if (!s.date) continue;
-    const d = new Date(s.date.replace(" ", "T"));
-    if (Number.isNaN(d.getTime())) continue;
-    const b = buckets.find((x) => d > x.from && d <= x.to);
-    if (!b) continue;
-    if (s.fromSite) b.site += s.total;
-    else b.store += s.total;
-  }
-
-  return buckets.map(({ label, site, store }) => ({ label, site, store }));
+/** Продажи магазина по неделям. Группировка — в базе. */
+export async function storeWeekly(weeks = 12): Promise<{ weekStart: Date; total: number }[]> {
+  const rows = await db()
+    .select({
+      weekStart: sql<string>`date_trunc('week', sold_at)`,
+      total: sql<number>`coalesce(sum(total_kzt), 0)::int`,
+    })
+    .from(schema.x2posSale)
+    .where(sql`not is_return and not from_site and sold_at is not null`)
+    .groupBy(sql`date_trunc('week', sold_at)`)
+    .orderBy(sql`date_trunc('week', sold_at)`)
+    .limit(weeks + 4);
+  return rows.map((r) => ({ weekStart: new Date(r.weekStart), total: Number(r.total) }));
 }
 
-/** Топ товаров по выручке за всё время. */
-export function topProducts(sales: Sale[], limit = 10) {
-  const byName = new Map<string, { revenue: number; qty: number }>();
-  for (const s of sales) {
-    for (const it of s.items) {
-      const cur = byName.get(it.name) ?? { revenue: 0, qty: 0 };
-      cur.revenue += it.total;
-      cur.qty += it.qty;
-      byName.set(it.name, cur);
-    }
+/** Топ товаров по выручке, по позициям продаж. */
+export async function topProducts(limit = 10) {
+  const rows = await db()
+    .select({
+      name: schema.x2posSaleItem.name,
+      revenue: sql<number>`coalesce(sum(${schema.x2posSaleItem.totalKzt}), 0)::int`,
+      qty: sql<number>`coalesce(sum(${schema.x2posSaleItem.qty}), 0)::float8`,
+    })
+    .from(schema.x2posSaleItem)
+    .innerJoin(schema.x2posSale, sql`${schema.x2posSale.id} = ${schema.x2posSaleItem.saleId}`)
+    .where(sql`not ${schema.x2posSale.isReturn}`)
+    .groupBy(schema.x2posSaleItem.name)
+    .orderBy(sql`sum(${schema.x2posSaleItem.totalKzt}) desc`)
+    .limit(limit);
+  return rows.map((r) => ({ name: r.name, revenue: Number(r.revenue), qty: Number(r.qty) }));
+}
+
+export async function listCustomers(): Promise<Customer[]> {
+  const rows = await db()
+    .select()
+    .from(schema.x2posCustomer)
+    .orderBy(desc(schema.x2posCustomer.debtKzt));
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    phone: r.phone,
+    city: r.city,
+    debt: r.debtKzt,
+  }));
+}
+
+export async function listAccounts(): Promise<Account[]> {
+  const rows = await db()
+    .select()
+    .from(schema.x2posAccount)
+    .orderBy(desc(schema.x2posAccount.amountKzt));
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    type: r.type,
+    amount: r.amountKzt,
+    currency: r.currency,
+  }));
+}
+
+export async function listDocs(): Promise<Doc[]> {
+  const rows = await db().select().from(schema.x2posDoc).orderBy(desc(schema.x2posDoc.docDate));
+  return rows.map((r) => ({
+    id: r.id,
+    action: ACTION_LABEL[r.action] ?? r.action,
+    status: r.status,
+    date: r.docDate,
+    quantity: Number(r.quantity),
+    amount: r.amountKzt,
+    supplier: r.supplier,
+    items: r.items,
+  }));
+}
+
+export async function listStoreSales(limit = 20): Promise<Sale[]> {
+  const rows = await db()
+    .select()
+    .from(schema.x2posSale)
+    .where(sql`not is_return and not from_site`)
+    .orderBy(desc(schema.x2posSale.soldAt))
+    .limit(limit);
+  return rows.map((r) => ({
+    id: r.id,
+    date: r.soldAt,
+    total: r.totalKzt,
+    paid: r.paidKzt,
+    status: r.status,
+    customerName: r.customerName,
+  }));
+}
+
+/* ── возраст данных ────────────────────────────────────────────────────── */
+
+/**
+ * Насколько свежо зеркало, словами.
+ *
+ * Показывается рядом с цифрами на каждом экране, где они есть. Это не
+ * украшение: между прогонами до десяти минут, и человек, принимающий решение
+ * по долгу в 24 миллиона, имеет право знать, на какой момент эта цифра.
+ */
+export async function mirrorAge(): Promise<{ syncedAt: Date | null; label: string; empty: boolean }> {
+  const [row] = await db()
+    .select({
+      syncedAt: sql<string | null>`max(synced_at)`,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(schema.x2posSale);
+
+  const n = Number(row?.n ?? 0);
+  const at = row?.syncedAt ? new Date(row.syncedAt) : null;
+  if (!at || n === 0) {
+    return { syncedAt: null, label: "обмена со складом ещё не было", empty: true };
   }
-  return [...byName.entries()]
-    .map(([name, v]) => ({ name, ...v }))
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, limit);
+
+  const min = Math.floor((Date.now() - at.getTime()) / 60_000);
+  const label =
+    min < 1
+      ? "данные склада: только что"
+      : min < 60
+        ? `данные склада: ${min} мин назад`
+        : min < 60 * 24
+          ? `данные склада: ${Math.floor(min / 60)} ч назад`
+          : `данные склада: ${Math.floor(min / 1440)} дн назад`;
+  return { syncedAt: at, label, empty: false };
 }
 
-const MONTHS = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
-function shortDate(d: Date): string {
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
-}
+/* ── продажи сайта ─────────────────────────────────────────────────────── */
 
-export { toKzt, toQty };
-
-/* ── продажи сайта по СВОИМ данным ─────────────────────────────────────── */
-
-/* Почему не берём их из X2pos, как продажи магазина.
-
-   Заказ сайта попадает в X2pos не мгновенно: он проходит через очередь, и
-   пока не доехал — в X2pos его нет. Считать по X2pos значит показывать сайт
-   беднее, чем он есть, и тем сильнее, чем хуже работает обмен. Своя таблица
-   `order` знает про заказ в тот же миг, когда он оформлен, и она для сайта
-   первоисточник.
-
-   Отменённые не считаем: деньги по ним не придут. */
+/* Считаются по СВОИМ заказам, а не по зеркалу: заказ доезжает в X2pos через
+   очередь, и счёт по зеркалу занижал бы сайт ровно тогда, когда обмен сломан. */
 export interface SiteOrder {
   date: Date;
   totalKzt: number;
 }
 
 export function weeklyCombined(
-  storeSales: Sale[],
+  store: { weekStart: Date; total: number }[],
   siteOrders: SiteOrder[],
   weeks = 12,
 ): { label: string; site: number; store: number }[] {
   const now = new Date();
   const buckets: { label: string; site: number; store: number; from: Date; to: Date }[] = [];
-
   for (let i = weeks - 1; i >= 0; i--) {
     const to = new Date(now);
     to.setDate(to.getDate() - i * 7);
@@ -325,18 +254,18 @@ export function weeklyCombined(
     buckets.push({ label: shortDate(to), site: 0, store: 0, from, to });
   }
 
-  for (const s of storeSales) {
-    if (s.isReturn || s.fromSite || !s.date) continue;
-    const d = new Date(s.date.replace(" ", "T"));
-    if (Number.isNaN(d.getTime())) continue;
-    const b = buckets.find((x) => d > x.from && d <= x.to);
+  for (const s of store) {
+    const b = buckets.find((x) => s.weekStart > x.from && s.weekStart <= x.to);
     if (b) b.store += s.total;
   }
-
   for (const o of siteOrders) {
     const b = buckets.find((x) => o.date > x.from && o.date <= x.to);
     if (b) b.site += o.totalKzt;
   }
-
   return buckets.map(({ label, site, store }) => ({ label, site, store }));
+}
+
+const MONTHS = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+function shortDate(d: Date): string {
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }

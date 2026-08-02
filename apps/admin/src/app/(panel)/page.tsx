@@ -5,16 +5,15 @@ import { db, schema } from "@vita/db/client";
 import { formatTenge, groupDigits } from "@vita/core/format";
 import { currentAdmin } from "@/lib/auth";
 import {
-  getAccounts,
-  getCustomers,
-  getSales,
-  summarize,
+  listAccounts,
+  listCustomers,
+  mirrorAge,
+  salesSummary,
+  storeWeekly,
   topProducts,
   weeklyCombined,
-  type SiteOrder,
 } from "@/lib/x2pos-read";
 import { AppShell, Empty, Panel, Section } from "@/components/AppShell";
-import { Deferred, DeferredSkeleton, StatRowSkeleton } from "@/components/Deferred";
 import { StatRow, StatTile } from "@/components/StatTile";
 import { BarList } from "@/components/charts/BarList";
 import { TimeSeries } from "@/components/charts/TimeSeries";
@@ -23,28 +22,67 @@ export const dynamic = "force-dynamic";
 
 /* Сводка.
 
-   Первый экран отвечает на один вопрос: где сейчас деньги.
+   Первый экран отвечает на один вопрос: где сейчас деньги. Для оптового
+   склада, у которого две трети выручки не оплачены, это в первую очередь
+   долг, а уже потом обороты.
 
-   КЛЮЧЕВОЕ РЕШЕНИЕ: страница НЕ ждёт X2pos. Он отвечает из региона Vercel
-   дольше, чем отведено функции, и пока Сводка была одним большим `await`,
-   весь экран падал в «данные не получены» — включая половину, которая
-   считается по своей базе и готова мгновенно.
+   Всё до единой цифры читается из СВОЕЙ базы — и то, что про сайт, и то, что
+   про склад. В X2pos эта страница не ходит вовсе: справочники туда зеркалит
+   воркер на Railway по расписанию. Отсюда и скорость, и то, что экран больше
+   не может упасть из-за недоступного склада.
 
-   Теперь своё — готовность каталога, заказы сайта, блок «требует внимания» —
-   отдаётся сразу, а куски со складскими цифрами приходят потоком через
-   `Deferred`. Не придут — погаснет только их кусок. Это не про скорость, а
-   про изоляцию отказа: внешний сервис не должен решать, покажется ли
-   страница вообще. */
+   Возраст складских цифр показан в подзаголовке. Между прогонами до десяти
+   минут, и человек, который смотрит на долг в 24 миллиона, имеет право знать,
+   на какой момент это число. */
 
 export default async function DashboardPage() {
   const admin = await currentAdmin();
   if (!admin) redirect("/login");
 
-  const [readiness, site] = await Promise.all([catalogReadiness(), siteOrders()]);
+  const [readiness, site, sales, customers, accounts, weekly, top, age] = await Promise.all([
+    catalogReadiness(),
+    siteOrders(),
+    salesSummary(),
+    listCustomers(),
+    listAccounts(),
+    storeWeekly(),
+    topProducts(8),
+    mirrorAge(),
+  ]);
+
+  const money = accounts.reduce((a, x) => a + x.amount, 0);
+  const customerDebt = customers.reduce((a, c) => a + c.debt, 0);
+  const debtors = customers.filter((c) => c.debt > 0);
 
   return (
-    <AppShell title="Сводка" subtitle="Каталог и заказы сайта — на сейчас. Данные склада подгружаются.">
+    <AppShell
+      title="Сводка"
+      subtitle={
+        age.empty
+          ? "Каталог и заказы сайта. Обмена со складом ещё не было — цифры X2pos появятся после первой синхронизации."
+          : `Каталог и заказы сайта — на сейчас · ${age.label}`
+      }
+    >
       <StatRow>
+        <StatTile
+          label="Не оплачено"
+          value={age.empty ? "—" : formatTenge(sales.unpaid)}
+          unavailable={age.empty}
+          fraction={sales.revenue > 0 ? sales.unpaid / sales.revenue : undefined}
+          tone="danger"
+          caption={
+            sales.revenue > 0
+              ? `${Math.round((sales.unpaid / sales.revenue) * 100)}% выручки · отгружено ${formatTenge(sales.revenue)}`
+              : undefined
+          }
+        />
+        <StatTile
+          label="Деньги на счетах"
+          value={accounts.length > 0 ? formatTenge(money) : "—"}
+          unavailable={accounts.length === 0}
+          tone="success"
+          caption={accounts.length > 0 ? `${accounts.length} счёта в X2pos` : undefined}
+        />
         <StatTile
           label="Продажи сайта"
           value={formatTenge(site.revenue)}
@@ -64,18 +102,15 @@ export default async function DashboardPage() {
             readiness.drafts > 0 ? `${readiness.drafts} черновиков ждут карточки` : "все товары заполнены"
           }
         />
-        <Deferred fallback={<StatRowSkeleton count={2} />}>
-          <WarehouseTiles />
-        </Deferred>
       </StatRow>
 
       <Section
         title="Продажи по неделям"
         hint="Один склад, два канала. Сайт считается по своим заказам, магазин — по продажам X2pos через кассу."
       >
-        <Deferred fallback={<DeferredSkeleton height={260} />}>
-          <SalesChart siteRows={site.rows} />
-        </Deferred>
+        <Panel>
+          <TimeSeries data={weeklyCombined(weekly, site.rows)} />
+        </Panel>
       </Section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -83,15 +118,47 @@ export default async function DashboardPage() {
           title="Кому отгрузили в долг"
           hint="Баланс клиента по данным X2pos. С «не оплачено» не сходится — это разные счётчики, объяснение на Складе."
         >
-          <Deferred fallback={<DeferredSkeleton height={300} />}>
-            <DebtorsPanel />
-          </Deferred>
+          <Panel>
+            <BarList
+              tone="danger"
+              emptyLabel={age.empty ? "Данных со склада ещё нет" : "Долгов нет"}
+              data={debtors.slice(0, 8).map((c) => ({
+                id: c.id,
+                label: c.name,
+                sub: c.city ?? undefined,
+                value: c.debt,
+                display: formatTenge(c.debt),
+              }))}
+            />
+            {debtors.length > 0 ? (
+              <div
+                className="flex items-baseline justify-between px-4 py-2"
+                style={{ borderTop: "1px solid var(--border)" }}
+              >
+                <span style={{ fontSize: "var(--text-caption)", color: "var(--text-secondary)" }}>
+                  Всего по карточкам клиентов · должников {debtors.length} из {customers.length}
+                </span>
+                <span className="vl-mono" style={{ color: "var(--text-primary)" }}>
+                  {formatTenge(customerDebt)}
+                </span>
+              </div>
+            ) : null}
+          </Panel>
         </Section>
 
         <Section title="Что продаётся" hint="Топ по выручке за всё время, по данным продаж X2pos.">
-          <Deferred fallback={<DeferredSkeleton height={300} />}>
-            <TopProductsPanel />
-          </Deferred>
+          <Panel>
+            <BarList
+              emptyLabel={age.empty ? "Данных со склада ещё нет" : "Продаж ещё не было"}
+              data={top.map((p) => ({
+                id: p.name,
+                label: p.name,
+                sub: `${groupDigits(Math.round(p.qty))} шт`,
+                value: p.revenue,
+                display: formatTenge(p.revenue),
+              }))}
+            />
+          </Panel>
         </Section>
       </div>
 
@@ -132,120 +199,6 @@ export default async function DashboardPage() {
   );
 }
 
-/* ── куски, которые ждут X2pos ─────────────────────────────────────────── */
-
-async function WarehouseTiles() {
-  const [sales, accounts] = await Promise.all([getSales(), getAccounts()]);
-  const s = sales.ok ? summarize(sales.data) : null;
-  const money = accounts.ok ? accounts.data.reduce((a, x) => a + x.amount, 0) : null;
-
-  return (
-    <>
-      <StatTile
-        label="Не оплачено"
-        value={s ? formatTenge(s.unpaid) : "—"}
-        unavailable={!s}
-        fraction={s && s.revenue > 0 ? s.unpaid / s.revenue : undefined}
-        tone="danger"
-        caption={
-          s
-            ? `${Math.round((s.unpaid / Math.max(s.revenue, 1)) * 100)}% выручки · отгружено ${formatTenge(s.revenue)}`
-            : undefined
-        }
-      />
-      <StatTile
-        label="Деньги на счетах"
-        value={money !== null ? formatTenge(money) : "—"}
-        unavailable={money === null}
-        tone="success"
-        caption={accounts.ok ? `${accounts.data.length} счёта в X2pos` : undefined}
-      />
-    </>
-  );
-}
-
-async function SalesChart({ siteRows }: { siteRows: SiteOrder[] }) {
-  const sales = await getSales();
-  if (!sales.ok) {
-    return (
-      <Panel>
-        <Unavailable reason={sales.reason} />
-      </Panel>
-    );
-  }
-  return (
-    <Panel>
-      <TimeSeries data={weeklyCombined(sales.data, siteRows)} />
-    </Panel>
-  );
-}
-
-async function DebtorsPanel() {
-  const customers = await getCustomers();
-  if (!customers.ok) {
-    return (
-      <Panel>
-        <Unavailable reason={customers.reason} />
-      </Panel>
-    );
-  }
-  const total = customers.data.reduce((a, c) => a + c.debt, 0);
-  return (
-    <Panel>
-      <BarList
-        tone="danger"
-        emptyLabel="Долгов нет"
-        data={customers.data
-          .filter((c) => c.debt > 0)
-          .slice(0, 8)
-          .map((c) => ({
-            id: c.id,
-            label: c.name,
-            sub: c.city ?? undefined,
-            value: c.debt,
-            display: formatTenge(c.debt),
-          }))}
-      />
-      <div
-        className="flex items-baseline justify-between px-4 py-2"
-        style={{ borderTop: "1px solid var(--border)" }}
-      >
-        <span style={{ fontSize: "var(--text-caption)", color: "var(--text-secondary)" }}>
-          Всего по карточкам клиентов
-        </span>
-        <span className="vl-mono" style={{ color: "var(--text-primary)" }}>
-          {formatTenge(total)}
-        </span>
-      </div>
-    </Panel>
-  );
-}
-
-async function TopProductsPanel() {
-  const sales = await getSales();
-  if (!sales.ok) {
-    return (
-      <Panel>
-        <Unavailable reason={sales.reason} />
-      </Panel>
-    );
-  }
-  return (
-    <Panel>
-      <BarList
-        emptyLabel="Продаж ещё не было"
-        data={topProducts(sales.data, 8).map((p) => ({
-          id: p.name,
-          label: p.name,
-          sub: `${groupDigits(p.qty)} шт`,
-          value: p.revenue,
-          display: formatTenge(p.revenue),
-        }))}
-      />
-    </Panel>
-  );
-}
-
 /* Заказы сайта из своей базы. Отменённые не в счёт: денег по ним не будет. */
 async function siteOrders() {
   const rows = await db()
@@ -263,15 +216,6 @@ async function siteOrders() {
     count: rows.length,
     notSynced: rows.filter((r) => !r.x2posOrderId).length,
   };
-}
-
-function Unavailable({ reason }: { reason: string }) {
-  return (
-    <Empty
-      title="Данные из X2pos не получены"
-      hint={`${reason}. Остальная панель работает — цифры вернутся, как только склад ответит.`}
-    />
-  );
 }
 
 /* ── готовность каталога ───────────────────────────────────────────────── */

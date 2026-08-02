@@ -8,13 +8,14 @@
     "./client": "./src/client.ts",
     "./config": "./src/config.ts",
     "./map": "./src/map.ts",
-    "./types": "./src/types.ts",
     "./sync/catalog": "./src/sync/catalog.ts",
     "./sync/media": "./src/sync/media.ts",
+    "./sync/mirror": "./src/sync/mirror.ts",
     "./sync/outbox": "./src/sync/outbox.ts",
     "./sync/report": "./src/sync/report.ts",
     "./sync/state": "./src/sync/state.ts",
-    "./sync/stock": "./src/sync/stock.ts"
+    "./sync/stock": "./src/sync/stock.ts",
+    "./types": "./src/types.ts"
   },
   "scripts": {
     "test": "node --test --experimental-strip-types \"src/**/*.test.ts\"",

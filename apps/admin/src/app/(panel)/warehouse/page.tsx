@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { formatTenge, groupDigits } from "@vita/core/format";
 import { currentAdmin } from "@/lib/auth";
-import { getAccounts, getCustomers, getDocs, getSales, summarize } from "@/lib/x2pos-read";
+import { listAccounts, listCustomers, listDocs, mirrorAge, salesSummary } from "@/lib/x2pos-read";
 import { AppShell, Empty, Panel, Section } from "@/components/AppShell";
 import { DataTable, Muted, type Column } from "@/components/DataTable";
 import { StatRow, StatTile } from "@/components/StatTile";
@@ -26,21 +26,20 @@ export default async function WarehousePage() {
   const admin = await currentAdmin();
   if (!admin) redirect("/login");
 
-  /* Ждём здесь, но экран целиком отдаётся не раньше: разделы ниже обёрнуты в
-     `Deferred`, и каждый гаснет отдельно. Полностью складской экран без X2pos
-     смысла не имеет, поэтому шапка у него тоже ждёт — но не дольше, чем один
-     самый медленный запрос вместо четырёх подряд. */
-  const [accounts, customers, docs, sales] = await Promise.all([
-    getAccounts(),
-    getCustomers(),
-    getDocs(),
-    getSales(),
+  /* Всё из своей базы: справочники сюда зеркалит воркер, экран в X2pos не
+     ходит и потому не может из-за него упасть. */
+  const [accounts, customers, docs, sales, age] = await Promise.all([
+    listAccounts(),
+    listCustomers(),
+    listDocs(),
+    salesSummary(),
+    mirrorAge(),
   ]);
 
-  const s = sales.ok ? summarize(sales.data) : null;
-  const money = accounts.ok ? accounts.data.reduce((a, x) => a + x.amount, 0) : null;
-  const debt = customers.ok ? customers.data.reduce((a, c) => a + c.debt, 0) : null;
-  const drafts = docs.ok ? docs.data.filter((d) => d.status === "draft") : [];
+  const money = accounts.reduce((a, x) => a + x.amount, 0);
+  const debt = customers.reduce((a, c) => a + c.debt, 0);
+  const debtors = customers.filter((c) => c.debt > 0);
+  const drafts = docs.filter((d) => d.status === "draft");
 
   const accountCols: Column<Account>[] = [
     { key: "name", header: "Счёт", render: (a) => a.name },
@@ -85,33 +84,37 @@ export default async function WarehousePage() {
   return (
     <AppShell
       title="Склад"
-      subtitle="Данные X2pos, только просмотр. Изменения делаются в самом X2pos — он обслуживает ещё и магазин."
+      subtitle={
+        age.empty
+          ? "Обмена со складом ещё не было — запустите его на экране «Обмен»."
+          : `Данные X2pos, только просмотр · ${age.label}. Изменения делаются в самом X2pos — он обслуживает ещё и магазин.`
+      }
     >
       <StatRow>
         <StatTile
           label="Деньги на счетах"
-          value={money !== null ? formatTenge(money) : "—"}
-          unavailable={money === null}
+          value={accounts.length ? formatTenge(money) : "—"}
+          unavailable={accounts.length === 0}
           tone="success"
         />
         <StatTile
           label="Долг по карточкам клиентов"
-          value={debt !== null ? formatTenge(debt) : "—"}
-          unavailable={debt === null}
+          value={customers.length ? formatTenge(debt) : "—"}
+          unavailable={customers.length === 0}
           tone="danger"
-          caption={customers.ok ? `должников ${customers.data.filter((c) => c.debt > 0).length} из ${customers.data.length}` : undefined}
+          caption={customers.length ? `должников ${debtors.length} из ${customers.length}` : undefined}
         />
         <StatTile
           label="Не оплачено по продажам"
-          value={s ? formatTenge(s.unpaid) : "—"}
-          unavailable={!s}
+          value={age.empty ? "—" : formatTenge(sales.unpaid)}
+          unavailable={age.empty}
           tone="danger"
           caption="другой счётчик — см. пояснение ниже"
         />
         <StatTile
           label="Приёмки в черновиках"
-          value={docs.ok ? String(drafts.length) : "—"}
-          unavailable={!docs.ok}
+          value={age.empty ? "—" : String(drafts.length)}
+          unavailable={age.empty}
           tone="brass"
           caption={drafts.length > 0 ? "товар по ним НЕ оприходован" : "все документы проведены"}
         />
@@ -135,46 +138,33 @@ export default async function WarehousePage() {
       </div>
 
       <Section title="Деньги" hint="Остатки по счетам в X2pos на сейчас.">
-        {accounts.ok ? (
-          <DataTable columns={accountCols} rows={accounts.data} rowKey={(a) => a.id} />
-        ) : (
-          <Panel>
-            <Empty title="Данные из X2pos не получены" hint={accounts.reason} />
-          </Panel>
-        )}
+        <DataTable
+          columns={accountCols}
+          rows={accounts}
+          rowKey={(a) => a.id}
+          empty={<Empty title="Счетов нет" hint="Появятся после первого обмена со складом." />}
+        />
       </Section>
 
       <Section
         title="Поступления и документы"
         hint="Приёмки, списания, перемещения и ревизии. Приехавший товар — повод завести карточки на сайте."
       >
-        {docs.ok ? (
-          <DataTable
-            columns={docCols}
-            rows={docs.data}
-            rowKey={(d) => d.id}
-            empty={<Empty title="Документов нет" />}
-          />
-        ) : (
-          <Panel>
-            <Empty title="Данные из X2pos не получены" hint={docs.reason} />
-          </Panel>
-        )}
+        <DataTable
+          columns={docCols}
+          rows={docs}
+          rowKey={(d) => d.id}
+          empty={<Empty title="Документов нет" hint="Появятся после первого обмена со складом." />}
+        />
       </Section>
 
       <Section title="Клиенты" hint="Все клиенты компании и их баланс. Отсортированы по величине долга.">
-        {customers.ok ? (
-          <DataTable
-            columns={customerCols}
-            rows={customers.data}
-            rowKey={(c) => c.id}
-            empty={<Empty title="Клиентов нет" />}
-          />
-        ) : (
-          <Panel>
-            <Empty title="Данные из X2pos не получены" hint={customers.reason} />
-          </Panel>
-        )}
+        <DataTable
+          columns={customerCols}
+          rows={customers}
+          rowKey={(c) => c.id}
+          empty={<Empty title="Клиентов нет" hint="Появятся после первого обмена со складом." />}
+        />
       </Section>
     </AppShell>
   );
