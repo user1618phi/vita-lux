@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { PageShell } from "@/components/PageShell";
 import { redirect } from "next/navigation";
 import { currentAdmin } from "@/lib/auth";
-import { groupDigits } from "@vita/core/format";
+import { formatTenge, groupDigits } from "@vita/core/format";
 import {
   DELIVERY_LABEL,
   ORDER_STATUS_FLOW,
@@ -10,19 +9,26 @@ import {
   PAYMENT_LABEL,
   type OrderStatus,
 } from "@vita/core/order/labels";
-import { logoutAction } from "../actions";
+import { AppShell, Empty, Panel, Section } from "@/components/AppShell";
+import { DataTable, Muted, type Column } from "@/components/DataTable";
+import { StatRow, StatTile } from "@/components/StatTile";
 import { OrderStatusChip, inputStyle } from "../ui";
-import { listOrders } from "./actions";
+import { getSales, summarize } from "@/lib/x2pos-read";
+import { listOrders, type OrderRow } from "./actions";
 import { ORDERS_PER_PAGE } from "./pagination";
 
 export const dynamic = "force-dynamic";
 
-/* Список заказов.
+/* Заказы сайта.
 
    Персональных данных здесь нет ни одного поля — ни имени, ни телефона, ни
    адреса. Всё, что нужно, чтобы решить «каким заказом заняться», видно и без
    них: сумма, способ доставки, город, дата и статус. ПД показывает только
    карточка, и только она пишет запись в журнал доступа.
+
+   Колонка «В X2pos» — сверка. Заказ сайта обязан стать продажей на складе,
+   иначе остаток не спишется и товар уедет дважды. Пустая ячейка значит, что
+   он ещё в очереди или застрял; разбираться с этим — на экране «Обмен».
 
    Умолчание — «Новые»: это очередь работы, а не архив. */
 
@@ -44,147 +50,230 @@ export default async function OrdersPage({
   if (!admin) redirect("/login");
 
   const sp = await searchParams;
-  const status = (ORDER_STATUS_FLOW as string[]).includes(sp.status ?? "")
-    ? (sp.status as OrderStatus)
-    : sp.status === "all"
-      ? "all"
-      : "new";
+  const status = (sp.status ?? "new") as OrderStatus | "all";
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
-  const { rows, total } = await listOrders({ status, query: sp.q, page });
-  const pages = Math.max(1, Math.ceil(total / ORDERS_PER_PAGE));
+  const query = sp.q?.trim() || undefined;
 
-  const tab = (key: string, label: string) => {
-    const active = status === key;
-    const qs = new URLSearchParams();
-    qs.set("status", key);
-    if (sp.q) qs.set("q", sp.q);
-    return (
-      <Link
-        key={key}
-        href={`/orders?${qs}`}
-        className="flex-none rounded-md px-3 font-sans leading-[40px]"
-        style={{
-          fontSize: "var(--text-body-s)",
-          background: active ? "var(--action-primary-bg)" : "transparent",
-          color: active ? "var(--action-primary-text)" : "var(--text-secondary)",
-          border: active ? "none" : "1px solid var(--border-control)",
-          textDecoration: "none",
-        }}
-      >
-        {label}
-      </Link>
-    );
-  };
+  const [{ rows, total }, sales] = await Promise.all([
+    listOrders({ status, query, page }),
+    getSales(),
+  ]);
+
+  const pages = Math.max(1, Math.ceil(total / ORDERS_PER_PAGE));
+  const s = sales.ok ? summarize(sales.data) : null;
+
+  const columns: Column<OrderRow>[] = [
+    {
+      key: "ref",
+      header: "Номер",
+      width: 130,
+      render: (o) => (
+        <Link
+          href={`/orders/${o.id}`}
+          className="vl-mono"
+          style={{ color: "var(--text-primary)", textDecoration: "none" }}
+        >
+          {o.refCode}
+        </Link>
+      ),
+    },
+    { key: "date", header: "Дата", width: 120, render: (o) => <Muted>{fmtDate(o.createdAt)}</Muted> },
+    { key: "status", header: "Статус", width: 130, render: (o) => <OrderStatusChip status={o.status} /> },
+    { key: "items", header: "Позиций", numeric: true, width: 90, render: (o) => groupDigits(o.items) },
+    { key: "total", header: "Сумма", numeric: true, render: (o) => `${groupDigits(o.totalKzt)} ₸` },
+    {
+      key: "delivery",
+      header: "Доставка",
+      secondary: true,
+      render: (o) => (
+        <Muted>
+          {DELIVERY_LABEL[o.deliveryMethod]}
+          {o.city ? ` · ${o.city}` : ""}
+        </Muted>
+      ),
+    },
+    {
+      key: "payment",
+      header: "Оплата",
+      secondary: true,
+      width: 120,
+      render: (o) => <Muted>{PAYMENT_LABEL[o.paymentMethod]}</Muted>,
+    },
+    {
+      key: "x2pos",
+      header: "В X2pos",
+      width: 130,
+      render: (o) =>
+        o.x2posOrderId ? (
+          <span className="vl-mono" style={{ color: "var(--state-success)", fontSize: "var(--text-caption)" }}>
+            {o.x2posOrderId}
+          </span>
+        ) : o.status === "cancelled" ? (
+          <Muted>отменён</Muted>
+        ) : (
+          <Link href="/sync" style={{ color: "var(--brass-text)", textDecoration: "none" }}>
+            не доехал
+          </Link>
+        ),
+    },
+    {
+      key: "notify",
+      header: "",
+      width: 40,
+      render: (o) =>
+        o.notifyStatus === "failed" ? (
+          <span title="Уведомление в Telegram не дошло" style={{ color: "var(--state-danger)" }}>
+            !
+          </span>
+        ) : null,
+    },
+  ];
+
+  const tabs: { key: OrderStatus | "all"; label: string }[] = [
+    ...ORDER_STATUS_FLOW.map((f) => ({ key: f, label: ORDER_STATUS_LABEL[f] })),
+    { key: "all", label: "Все" },
+  ];
 
   return (
-    <PageShell
+    <AppShell
       title="Заказы"
-      width="wide"
+      subtitle="Заказы с сайта. Продажи магазина идут мимо — они видны на Складе и в Сводке."
     >
-      <form className="flex flex-wrap gap-2">
-        <input type="hidden" name="status" value={status} />
-        <input
-          name="q"
-          defaultValue={sp.q ?? ""}
-          placeholder="Номер заказа или телефон"
-          style={{ ...inputStyle, flex: "1 1 200px", width: "auto" }}
+      <StatRow>
+        <StatTile label="Заказов найдено" value={groupDigits(total)} tone="site" caption={`статус: ${status === "all" ? "любой" : ORDER_STATUS_LABEL[status]}`} />
+        {/* Сумма по СВОИМ заказам, как и на Сводке. Считать здесь по X2pos
+            значило бы показать ноль рядом с непустым списком заказов — заказ
+            доезжает туда через очередь и не мгновенно. */}
+        <StatTile
+          label="Сумма заказов"
+          value={formatTenge(rows.reduce((a, o) => a + o.totalKzt, 0))}
+          tone="site"
+          caption="на текущей странице списка"
         />
-      </form>
+        <StatTile
+          label="Продажи магазина"
+          value={s ? formatTenge(s.storeRevenue) : "—"}
+          unavailable={!s}
+          fraction={s && s.revenue > 0 ? s.storeRevenue / s.revenue : undefined}
+          tone="store"
+          caption="через кассу, мимо сайта"
+        />
+        <StatTile
+          label="Не доехало в X2pos"
+          value={groupDigits(rows.filter((o) => !o.x2posOrderId && o.status !== "cancelled").length)}
+          tone="danger"
+          caption="на текущей странице списка"
+        />
+      </StatRow>
 
-      <div className="mt-3 flex gap-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-        {ORDER_STATUS_FLOW.map((s) => tab(s, ORDER_STATUS_LABEL[s]))}
-        {tab("all", "Все")}
-      </div>
-
-      {rows.length === 0 ? (
-        <p
-          className="mt-8 text-center font-sans"
-          style={{ fontSize: "var(--text-body-s)", color: "var(--text-secondary)" }}
-        >
-          {sp.q ? "Ничего не найдено" : "Заказов пока нет"}
-        </p>
-      ) : (
-        <ul className="mt-4 m-0 p-0 list-none flex flex-col gap-2">
-          {rows.map((o) => (
-            <li key={o.id}>
-              <Link
-                href={`/orders/${o.id}`}
-                className="block rounded-lg p-3"
-                style={{
-                  background: "var(--surface-card)",
-                  border: "0.5px solid var(--border)",
-                  textDecoration: "none",
-                }}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="vl-mono" style={{ fontSize: "var(--text-body)", color: "var(--text-primary)" }}>
-                    {o.refCode}
-                  </span>
-                  <OrderStatusChip status={o.status} />
-                </div>
-
-                <div
-                  className="mt-1 font-sans"
-                  style={{ fontSize: "var(--text-caption)", color: "var(--text-secondary)" }}
-                >
-                  {fmtDate(o.createdAt)} · {o.items} поз. · {DELIVERY_LABEL[o.deliveryMethod]} ·{" "}
-                  {PAYMENT_LABEL[o.paymentMethod]}
-                  {o.city ? ` · ${o.city}` : ""}
-                </div>
-
-                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-                  <span className="vl-mono" style={{ fontSize: "var(--text-body)", color: "var(--text-primary)" }}>
-                    {groupDigits(o.totalKzt)} ₸
-                  </span>
-                  {/* Заказ, о котором никому не сообщили. Самое ценное, что этот
-                      экран может показать: деньги ждут, а никто не знает. */}
-                  {o.notifyStatus === "failed" ? (
-                    <span
-                      className="rounded-sm px-2 py-0.5 font-sans"
-                      style={{
-                        fontSize: "var(--text-micro)",
-                        background: "var(--tint-danger)",
-                        color: "var(--state-danger)",
-                      }}
-                    >
-                      уведомление не дошло
-                    </span>
-                  ) : null}
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {pages > 1 ? (
-        <nav className="mt-5 flex items-center justify-center gap-2">
-          {Array.from({ length: pages }, (_, i) => i + 1).map((p) => {
-            const qs = new URLSearchParams();
-            qs.set("status", status);
-            if (sp.q) qs.set("q", sp.q);
-            qs.set("page", String(p));
+      <div className="mt-6 mb-4 flex flex-wrap items-center gap-2">
+        <form className="flex gap-2">
+          <input
+            name="q"
+            defaultValue={query ?? ""}
+            placeholder="Номер заказа или телефон"
+            style={{ ...inputStyle, height: 40, width: 260 }}
+            aria-label="Поиск заказа"
+          />
+        </form>
+        <div className="flex flex-wrap gap-1">
+          {tabs.map((t) => {
+            const on = status === t.key;
             return (
               <Link
-                key={p}
-                href={`/orders?${qs}`}
-                className="grid place-items-center rounded-md font-sans"
+                key={t.key}
+                href={`/orders?status=${t.key}`}
+                className="rounded-md px-3 leading-[32px]"
                 style={{
-                  minWidth: 44,
-                  height: 44,
-                  fontSize: "var(--text-body-s)",
-                  background: p === page ? "var(--action-primary-bg)" : "transparent",
-                  color: p === page ? "var(--action-primary-text)" : "var(--text-secondary)",
-                  border: p === page ? "none" : "1px solid var(--border-control)",
+                  fontSize: "var(--text-caption)",
                   textDecoration: "none",
+                  background: on ? "var(--action-primary-bg)" : "transparent",
+                  color: on ? "var(--action-primary-text)" : "var(--text-secondary)",
+                  border: `1px solid ${on ? "transparent" : "var(--border-control)"}`,
                 }}
               >
-                {p}
+                {t.label}
               </Link>
             );
           })}
-        </nav>
-      ) : null}
-    </PageShell>
+        </div>
+      </div>
+
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(o) => o.id}
+        empty={
+          <Empty
+            title={query ? "Ничего не нашлось" : "Заказов с таким статусом нет"}
+            hint={
+              query
+                ? "Проверьте номер заказа или телефон."
+                : "Сайт ещё молодой — первые заказы появятся здесь сразу после оформления."
+            }
+          />
+        }
+        footer={
+          pages > 1 ? (
+            <div className="flex flex-wrap items-center gap-1">
+              {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
+                <Link
+                  key={n}
+                  href={`/orders?status=${status}&page=${n}${query ? `&q=${encodeURIComponent(query)}` : ""}`}
+                  className="vl-mono rounded-sm px-2 py-1"
+                  style={{
+                    fontSize: "var(--text-caption)",
+                    textDecoration: "none",
+                    background: n === page ? "var(--action-primary-bg)" : "transparent",
+                    color: n === page ? "var(--action-primary-text)" : "var(--text-secondary)",
+                  }}
+                >
+                  {n}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <span style={{ fontSize: "var(--text-caption)", color: "var(--text-secondary)" }}>
+              Всего: {groupDigits(total)}
+            </span>
+          )
+        }
+      />
+
+      <Section
+        title="Продажи магазина"
+        hint="Для сравнения: то, что продано через кассу, не через сайт. Данные X2pos, редактированию отсюда не подлежат."
+      >
+        <Panel>
+          {sales.ok ? (
+            <ul className="m-0 list-none p-0">
+              {sales.data
+                .filter((x) => !x.fromSite && !x.isReturn)
+                .slice(0, 8)
+                .map((x) => (
+                  <li
+                    key={x.id}
+                    className="flex items-baseline justify-between gap-3 px-4 py-2"
+                    style={{ borderBottom: "1px solid var(--border)" }}
+                  >
+                    <span className="min-w-0 truncate" style={{ fontSize: "var(--text-body-s)" }}>
+                      {x.customerName ?? "Без клиента"}
+                      <Muted> · {x.date.slice(0, 10)}</Muted>
+                    </span>
+                    <span className="vl-mono shrink-0" style={{ fontSize: "var(--text-body-s)" }}>
+                      {formatTenge(x.total)}
+                      {x.paid < x.total ? (
+                        <span style={{ color: "var(--state-danger)" }}> · долг {formatTenge(x.total - x.paid)}</span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          ) : (
+            <Empty title="Данные из X2pos не получены" hint={sales.reason} />
+          )}
+        </Panel>
+      </Section>
+    </AppShell>
   );
 }

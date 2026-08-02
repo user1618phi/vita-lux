@@ -277,3 +277,51 @@ function shortDate(d: Date): string {
 }
 
 export { toKzt, toQty };
+
+/* ── продажи сайта по СВОИМ данным ─────────────────────────────────────── */
+
+/* Почему не берём их из X2pos, как продажи магазина.
+
+   Заказ сайта попадает в X2pos не мгновенно: он проходит через очередь, и
+   пока не доехал — в X2pos его нет. Считать по X2pos значит показывать сайт
+   беднее, чем он есть, и тем сильнее, чем хуже работает обмен. Своя таблица
+   `order` знает про заказ в тот же миг, когда он оформлен, и она для сайта
+   первоисточник.
+
+   Отменённые не считаем: деньги по ним не придут. */
+export interface SiteOrder {
+  date: Date;
+  totalKzt: number;
+}
+
+export function weeklyCombined(
+  storeSales: Sale[],
+  siteOrders: SiteOrder[],
+  weeks = 12,
+): { label: string; site: number; store: number }[] {
+  const now = new Date();
+  const buckets: { label: string; site: number; store: number; from: Date; to: Date }[] = [];
+
+  for (let i = weeks - 1; i >= 0; i--) {
+    const to = new Date(now);
+    to.setDate(to.getDate() - i * 7);
+    const from = new Date(to);
+    from.setDate(from.getDate() - 7);
+    buckets.push({ label: shortDate(to), site: 0, store: 0, from, to });
+  }
+
+  for (const s of storeSales) {
+    if (s.isReturn || s.fromSite || !s.date) continue;
+    const d = new Date(s.date.replace(" ", "T"));
+    if (Number.isNaN(d.getTime())) continue;
+    const b = buckets.find((x) => d > x.from && d <= x.to);
+    if (b) b.store += s.total;
+  }
+
+  for (const o of siteOrders) {
+    const b = buckets.find((x) => o.date > x.from && o.date <= x.to);
+    if (b) b.site += o.totalKzt;
+  }
+
+  return buckets.map(({ label, site, store }) => ({ label, site, store }));
+}

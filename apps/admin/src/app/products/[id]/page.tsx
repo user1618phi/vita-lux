@@ -45,7 +45,13 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   if (!row) notFound();
 
   const names = await db()
-    .select({ locale: productI18n.locale, name: productI18n.name })
+    .select({
+      locale: productI18n.locale,
+      name: productI18n.name,
+      descriptionMd: productI18n.descriptionMd,
+      seoTitle: productI18n.seoTitle,
+      seoDescription: productI18n.seoDescription,
+    })
     .from(productI18n)
     .where(eq(productI18n.productId, id));
 
@@ -58,11 +64,18 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const categories = (await db().select({ slug: category.slug }).from(category).orderBy(category.sort)).map((c) => c.slug);
   const collections = (await db().select({ slug: collection.slug }).from(collection).orderBy(collection.sort)).map((c) => c.slug);
 
+  const ru = names.find((n) => n.locale === "ru");
+  const kk = names.find((n) => n.locale === "kk");
+
   const values: ProductFormValues = {
     productId: row.productId,
     handle: row.handle,
-    nameRu: names.find((n) => n.locale === "ru")?.name ?? "",
-    nameKk: names.find((n) => n.locale === "kk")?.name ?? "",
+    nameRu: ru?.name ?? "",
+    nameKk: kk?.name ?? "",
+    descriptionRu: ru?.descriptionMd ?? "",
+    descriptionKk: kk?.descriptionMd ?? "",
+    seoTitleRu: ru?.seoTitle ?? "",
+    seoDescriptionRu: ru?.seoDescription ?? "",
     sku: row.sku ?? "",
     categorySlug: row.categorySlug,
     collectionSlug: row.collectionSlug ?? "",

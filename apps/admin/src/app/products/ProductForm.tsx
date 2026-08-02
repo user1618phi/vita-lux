@@ -16,6 +16,10 @@ export interface ProductFormValues {
   handle: string;
   nameRu: string;
   nameKk: string;
+  descriptionRu: string;
+  descriptionKk: string;
+  seoTitleRu: string;
+  seoDescriptionRu: string;
   sku: string;
   categorySlug: string;
   collectionSlug: string;
@@ -59,6 +63,53 @@ export function ProductForm({
 
         <Field label="Название (казахский)" hint="Обязательно — сайт двуязычный">
           <input name="nameKk" defaultValue={values.nameKk} required style={inputStyle} />
+        </Field>
+
+        {/* Описание и SEO. Стоят сразу за названиями, а не за «Подробнее»: у
+            товара из X2pos их нет вовсе, и заполнить их — часть той же работы,
+            что и придумать название. Прятать за раскрывашкой то, что нужно
+            заполнить каждому из 91 черновика, значит добавить 91 лишний клик. */}
+        <Field label="Описание (русский)" hint="Показывается на странице товара. Можно markdown.">
+          <textarea
+            name="descriptionRu"
+            defaultValue={values.descriptionRu}
+            rows={4}
+            style={{ ...inputStyle, height: "auto", padding: "10px 14px", lineHeight: 1.5 }}
+          />
+        </Field>
+
+        <Field label="Описание (казахский)">
+          <textarea
+            name="descriptionKk"
+            defaultValue={values.descriptionKk}
+            rows={4}
+            style={{ ...inputStyle, height: "auto", padding: "10px 14px", lineHeight: 1.5 }}
+          />
+        </Field>
+
+        <Field
+          label="Заголовок для поиска"
+          hint="До 60 знаков — длиннее поисковик обрежет. Пусто — возьмётся название товара."
+        >
+          <input
+            name="seoTitleRu"
+            defaultValue={values.seoTitleRu}
+            maxLength={70}
+            style={inputStyle}
+          />
+        </Field>
+
+        <Field
+          label="Описание для поиска"
+          hint="До 160 знаков. Это текст под ссылкой в результатах поиска."
+        >
+          <textarea
+            name="seoDescriptionRu"
+            defaultValue={values.seoDescriptionRu}
+            rows={2}
+            maxLength={180}
+            style={{ ...inputStyle, height: "auto", padding: "10px 14px", lineHeight: 1.5 }}
+          />
         </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
