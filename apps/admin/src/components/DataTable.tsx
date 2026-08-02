@@ -26,6 +26,8 @@ export interface Column<T> {
   width?: number | string;
   /** Скрыть на узких экранах — для второстепенных колонок. */
   secondary?: boolean;
+  /** Запретить перенос: статусы, даты, короткие метки. Числа и так не переносятся. */
+  nowrap?: boolean;
   render: (row: T) => ReactNode;
 }
 
@@ -101,6 +103,12 @@ export function DataTable<T>({
                       fontSize: "var(--text-body-s)",
                       color: "var(--text-primary)",
                       borderBottom: "1px solid var(--border)",
+                      /* Числа и статусы не переносятся: «184 900 ₸», разорванное
+                         на две строки, ломает и высоту строки, и саму цель
+                         колонки — сравнивать значения взглядом по вертикали.
+                         Тесно станет — таблица уедет в горизонтальный скролл,
+                         он для того и есть. */
+                      whiteSpace: c.nowrap || c.numeric ? "nowrap" : undefined,
                     }}
                   >
                     {c.render(row)}

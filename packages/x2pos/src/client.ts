@@ -46,6 +46,19 @@ import {
 const DEFAULT_TIMEOUT_MS = 8_000;
 const MAX_ATTEMPTS = 3;
 
+/* Токен один на процесс, а не на экземпляр клиента.
+
+   Раньше он лежал внутри `createClient`, и каждый вызов `createClient()`
+   начинал с собственного POST /api/auth. Админка создаёт клиент отдельно для
+   продаж, клиентов и счетов — то есть три лишних round-trip'а до Казахстана
+   перед первым полезным запросом. На машине разработчика это незаметно, из
+   serverless-региона Vercel — те самые секунды, из-за которых срабатывал
+   таймаут и панель писала «данные не получены».
+
+   Учётные данные у всех экземпляров одни (они из окружения), поэтому делить
+   токен безопасно. На 401 он сбрасывается и берётся заново — как и был. */
+let sharedToken: string | null = null;
+
 export class X2posError extends Error {
   readonly status: number;
   readonly endpoint: string;
@@ -68,8 +81,6 @@ export function createClient(options: ClientOptions = {}) {
   const doFetch = options.fetchImpl ?? fetch;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-  let token: string | null = null;
-
   async function authenticate(): Promise<string> {
     const body = new FormData();
     body.set("user", config.user);
@@ -82,8 +93,8 @@ export function createClient(options: ClientOptions = {}) {
 
     const parsed = authResponse.safeParse(await res.json());
     if (!parsed.success) throw new X2posError("/api/auth", res.status, "unexpected auth response");
-    token = parsed.data.token;
-    return token;
+    sharedToken = parsed.data.token;
+    return sharedToken;
   }
 
   async function withTimeout(run: (signal: AbortSignal) => Promise<Response>): Promise<Response> {
@@ -106,7 +117,7 @@ export function createClient(options: ClientOptions = {}) {
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       if (attempt > 0) await sleep(250 * 2 ** (attempt - 1));
 
-      const key = token ?? (await authenticate());
+      const key = sharedToken ?? (await authenticate());
       const headers: Record<string, string> = { "API-KEY": key, Accept: "application/json" };
       if (init.json !== undefined) headers["Content-Type"] = "application/json";
 
@@ -128,7 +139,7 @@ export function createClient(options: ClientOptions = {}) {
 
       if (res.status === 401) {
         // Token went stale. Drop it and let the next iteration re-authenticate.
-        token = null;
+        sharedToken = null;
         lastError = new X2posError(endpoint, 401, "unauthorized");
         continue;
       }
@@ -265,7 +276,7 @@ export function createClient(options: ClientOptions = {}) {
       if (input.address) body.set("address", input.address);
 
       const res = await withTimeout(async (signal) => {
-        const key = token ?? (await authenticate());
+        const key = sharedToken ?? (await authenticate());
         return doFetch(`${config.host}/api/customers`, {
           method: "POST",
           headers: { "API-KEY": key },

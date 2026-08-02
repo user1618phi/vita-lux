@@ -1,54 +1,51 @@
 import type { Checks } from "./readiness";
 import { publishable } from "./readiness";
 
-/* Чего не хватает товару, чтобы выйти на сайт.
+/* Готов товар к публикации или нет.
 
-   Здесь были пять квадратиков с буквами И · Р · Ф · Ц · О и легенда под
-   таблицей. Компактно, но нечитаемо: чтобы понять строку, приходилось искать
-   расшифровку внизу и держать её в голове. Колонка, которая требует легенды,
-   свою работу не делает.
+   Здесь побывали два перебора подряд. Сначала пять квадратиков с буквами
+   И · Р · Ф · Ц · О и легендой под таблицей — ребус, который надо было
+   расшифровывать. Потом перечисление недостающего словами — читаемо, но в
+   каждой строке висело «нет названия, раздела», и колонка из ответа
+   превратилась в стену текста.
 
-   Теперь пишется прямо то, что нужно сделать: «нет фото, цены». Название
-   требования и есть действие, расшифровывать нечего. Готовый товар говорит
-   «готов», и это единственное состояние, которое можно опознать одним взглядом
-   по цвету, — остальные надо читать, и это правильно, потому что они разные.
+   В таблице на 91 строку нужен один бит: можно публиковать или нет. Что
+   именно не заполнено, человек увидит в карточке товара, когда откроет её
+   заполнять, — там это и уместно.
 
-   Порядок слов не алфавитный, а по трудозатратам: название и раздел пишет
-   человек, фото и цену обычно приносит X2pos. Сначала то, что делать руками. */
+   Причина недоступности всё же не теряется: она остаётся в `title`, поэтому
+   доступна по наведению и скринридеру, не занимая места. */
 
-const MISSING_LABEL: [keyof Checks, string][] = [
-  ["name", "названия"],
-  ["category", "раздела"],
+const LABEL: [keyof Checks, string][] = [
+  ["name", "название"],
+  ["category", "раздел"],
   ["photo", "фото"],
-  ["price", "цены"],
+  ["price", "цена"],
 ];
 
 export function ReadyMarks({ checks }: { checks: Checks }) {
-  if (publishable(checks)) {
-    return (
-      <span
-        className="inline-flex items-center gap-1.5"
-        style={{ fontSize: "var(--text-caption)", color: "var(--state-success)" }}
-      >
-        <span
-          aria-hidden="true"
-          style={{ width: 6, height: 6, borderRadius: 3, background: "var(--state-success)" }}
-        />
-        готов
-        {/* Остаток к публикации не обязателен — товар под заказ продавать
-            законно, — но знать о нём полезно, поэтому он в примечании. */}
-        {!checks.stock ? (
-          <span style={{ color: "var(--text-secondary)" }}>· нет на складе</span>
-        ) : null}
-      </span>
-    );
-  }
-
-  const missing = MISSING_LABEL.filter(([k]) => !checks[k]).map(([, label]) => label);
+  const ok = publishable(checks);
+  const missing = LABEL.filter(([k]) => !checks[k]).map(([, label]) => label);
 
   return (
-    <span style={{ fontSize: "var(--text-caption)", color: "var(--brass-text)" }}>
-      нет {missing.join(", ")}
+    <span
+      className="inline-flex items-center gap-1.5"
+      style={{
+        fontSize: "var(--text-caption)",
+        color: ok ? "var(--state-success)" : "var(--text-secondary)",
+      }}
+      title={ok ? "Можно публиковать" : `Не хватает: ${missing.join(", ")}`}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: 3,
+          background: ok ? "var(--state-success)" : "var(--border-control)",
+        }}
+      />
+      {ok ? "готов" : "не готов"}
     </span>
   );
 }

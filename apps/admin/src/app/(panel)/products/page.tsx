@@ -72,7 +72,7 @@ export default async function ProductsPage({
       ),
     },
     { key: "cat", header: "Раздел", secondary: true, render: (p) => <Muted>{p.categorySlug}</Muted> },
-    { key: "ready", header: "Готовность", width: 150, render: (p) => <ReadyMarks checks={checksFor(p)} /> },
+    { key: "ready", header: "Готовность", width: 120, nowrap: true, render: (p) => <ReadyMarks checks={checksFor(p)} /> },
     {
       key: "price",
       header: "Цена",
@@ -93,11 +93,12 @@ export default async function ProductsPage({
       width: 90,
       render: (p) => (p.qty === null ? <Muted>—</Muted> : groupDigits(p.qty)),
     },
-    { key: "stock", header: "Наличие", width: 110, secondary: true, render: (p) => <StockChip state={p.stock} /> },
+    { key: "stock", header: "Наличие", width: 110, secondary: true, nowrap: true, render: (p) => <StockChip state={p.stock} /> },
     {
       key: "status",
       header: "Статус",
       width: 110,
+      nowrap: true,
       render: (p) =>
         p.status === "active" ? (
           <span style={{ color: "var(--state-success)" }}>На сайте</span>

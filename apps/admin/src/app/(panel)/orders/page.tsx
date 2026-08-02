@@ -81,8 +81,8 @@ export default async function OrdersPage({
         </Link>
       ),
     },
-    { key: "date", header: "Дата", width: 120, render: (o) => <Muted>{fmtDate(o.createdAt)}</Muted> },
-    { key: "status", header: "Статус", width: 130, render: (o) => <OrderStatusChip status={o.status} /> },
+    { key: "date", header: "Дата", width: 120, nowrap: true, render: (o) => <Muted>{fmtDate(o.createdAt)}</Muted> },
+    { key: "status", header: "Статус", width: 130, nowrap: true, render: (o) => <OrderStatusChip status={o.status} /> },
     { key: "items", header: "Позиций", numeric: true, width: 90, render: (o) => groupDigits(o.items) },
     { key: "total", header: "Сумма", numeric: true, render: (o) => `${groupDigits(o.totalKzt)} ₸` },
     {
