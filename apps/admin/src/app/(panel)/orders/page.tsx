@@ -9,11 +9,10 @@ import {
   PAYMENT_LABEL,
   type OrderStatus,
 } from "@vita/core/order/labels";
-import { AppShell, Empty, Panel, Section } from "@/components/AppShell";
+import { AppShell, Empty } from "@/components/AppShell";
 import { DataTable, Muted, type Column } from "@/components/DataTable";
 import { StatRow, StatTile } from "@/components/StatTile";
 import { OrderStatusChip, inputStyle } from "@/app/ui";
-import { getSales, summarize } from "@/lib/x2pos-read";
 import { listOrders, type OrderRow } from "./actions";
 import { ORDERS_PER_PAGE } from "./pagination";
 
@@ -29,6 +28,14 @@ export const dynamic = "force-dynamic";
    Колонка «В X2pos» — сверка. Заказ сайта обязан стать продажей на складе,
    иначе остаток не спишется и товар уедет дважды. Пустая ячейка значит, что
    он ещё в очереди или застрял; разбираться с этим — на экране «Обмен».
+
+   Продаж магазина здесь нет намеренно. Это экран заказов САЙТА, и мешать в
+   него кассовые продажи значит смешивать две разные работы: здесь звонят
+   покупателю и меняют статус, а к продажам магазина отсюда прикоснуться
+   нельзя вовсе. Они на Складе и в Сводке, где идут в сравнении.
+
+   Заодно экран перестал ходить в X2pos на каждый рендер: всё, что он
+   показывает, лежит в своей базе.
 
    Умолчание — «Новые»: это очередь работы, а не архив. */
 
@@ -54,13 +61,10 @@ export default async function OrdersPage({
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
   const query = sp.q?.trim() || undefined;
 
-  const [{ rows, total }, sales] = await Promise.all([
-    listOrders({ status, query, page }),
-    getSales(),
-  ]);
+  const { rows, total } = await listOrders({ status, query, page });
 
   const pages = Math.max(1, Math.ceil(total / ORDERS_PER_PAGE));
-  const s = sales.ok ? summarize(sales.data) : null;
+  const sum = rows.reduce((a, o) => a + o.totalKzt, 0);
 
   const columns: Column<OrderRow>[] = [
     {
@@ -146,17 +150,15 @@ export default async function OrdersPage({
             доезжает туда через очередь и не мгновенно. */}
         <StatTile
           label="Сумма заказов"
-          value={formatTenge(rows.reduce((a, o) => a + o.totalKzt, 0))}
+          value={formatTenge(sum)}
           tone="site"
           caption="на текущей странице списка"
         />
         <StatTile
-          label="Продажи магазина"
-          value={s ? formatTenge(s.storeRevenue) : "—"}
-          unavailable={!s}
-          fraction={s && s.revenue > 0 ? s.storeRevenue / s.revenue : undefined}
-          tone="store"
-          caption="через кассу, мимо сайта"
+          label="Средний чек"
+          value={rows.length > 0 ? formatTenge(Math.round(sum / rows.length)) : "—"}
+          tone="site"
+          caption="на текущей странице списка"
         />
         <StatTile
           label="Не доехало в X2pos"
@@ -240,40 +242,6 @@ export default async function OrdersPage({
         }
       />
 
-      <Section
-        title="Продажи магазина"
-        hint="Для сравнения: то, что продано через кассу, не через сайт. Данные X2pos, редактированию отсюда не подлежат."
-      >
-        <Panel>
-          {sales.ok ? (
-            <ul className="m-0 list-none p-0">
-              {sales.data
-                .filter((x) => !x.fromSite && !x.isReturn)
-                .slice(0, 8)
-                .map((x) => (
-                  <li
-                    key={x.id}
-                    className="flex items-baseline justify-between gap-3 px-4 py-2"
-                    style={{ borderBottom: "1px solid var(--border)" }}
-                  >
-                    <span className="min-w-0 truncate" style={{ fontSize: "var(--text-body-s)" }}>
-                      {x.customerName ?? "Без клиента"}
-                      <Muted> · {x.date.slice(0, 10)}</Muted>
-                    </span>
-                    <span className="vl-mono shrink-0" style={{ fontSize: "var(--text-body-s)" }}>
-                      {formatTenge(x.total)}
-                      {x.paid < x.total ? (
-                        <span style={{ color: "var(--state-danger)" }}> · долг {formatTenge(x.total - x.paid)}</span>
-                      ) : null}
-                    </span>
-                  </li>
-                ))}
-            </ul>
-          ) : (
-            <Empty title="Данные из X2pos не получены" hint={sales.reason} />
-          )}
-        </Panel>
-      </Section>
     </AppShell>
   );
 }
