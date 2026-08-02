@@ -69,13 +69,26 @@ export const getSales = cached("sales", async (): Promise<Sale[]> => {
   const channel = c.config.channel.toLowerCase();
   const out: Sale[] = [];
 
-  /* Пагинация по 50. Потолок в 20 страниц — предохранитель от бесконечного
-     цикла, а не ограничение выборки: на боевом аккаунте продаж 111. Когда их
-     станет за тысячу, дешевле будет зеркалить продажи в свою базу отдельным
-     джобом, чем тянуть их живьём на каждый рендер. */
-  for (let page = 1; page <= 20; page++) {
-    const rows = await c.listOrders(page);
-    if (rows.length === 0) break;
+  /* Страницы тянутся ПАЧКАМИ ПАРАЛЛЕЛЬНО, а не цепочкой.
+
+     Раньше это был цикл `await` по одной странице: пять последовательных
+     round-trip'ов до Казахстана. С машины разработчика — полторы секунды, из
+     serverless-региона Vercel — уже за таймаут, и панель писала «данные не
+     получены. This operation was aborted».
+
+     Пачка в 5 страниц покрывает 250 продаж за время одного запроса. Если
+     пачка вернулась полной, берём следующую — так выборка остаётся полной при
+     любом объёме, но платим за это только когда продаж действительно много.
+
+     Потолок в 20 страниц — предохранитель от бесконечного цикла. Когда продаж
+     станет за тысячу, дешевле будет зеркалить их в свою базу отдельным джобом,
+     чем тянуть живьём на каждый рендер. */
+  const BATCH = 5;
+  for (let first = 1; first <= 20; first += BATCH) {
+    const batch = await Promise.all(
+      Array.from({ length: BATCH }, (_, k) => c.listOrders(first + k)),
+    );
+    const rows = batch.flat();
     for (const r of rows) {
       if (r.is_deleted === "1") continue;
       out.push({
@@ -95,6 +108,8 @@ export const getSales = cached("sales", async (): Promise<Sale[]> => {
         })),
       });
     }
+    /* Последняя страница пачки пуста — дальше данных нет. */
+    if (batch[batch.length - 1].length === 0) break;
   }
   return out;
 });
