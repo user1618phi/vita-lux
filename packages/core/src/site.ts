@@ -25,4 +25,4 @@ export function isPublicSite(): boolean {
     служебный хост Vercel, и покупатель получил бы в переписке «пишу с сайта
     vita-web-git-feat-x.vercel.app». Адрес магазина один и меняется вместе с
     брендом, а не вместе с деплоем. */
-export const SITE_DOMAIN = "vitaluxes.kz";
+export const SITE_DOMAIN = "vitaluxe.kz";

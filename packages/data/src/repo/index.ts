@@ -2,7 +2,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { mockSource } from "./mock.source";
 import { dbSource } from "./db.source";
-import type { CatalogEntry, CatalogSource, CategorySummary, ResolvedLine } from "./types";
+import type { CatalogEntry, CatalogSource, CategorySummary, ProductDetail, ResolvedLine } from "./types";
 
 /* Catalog repository — the single seam between pages and wherever product data
    actually lives. Pages import from here and nowhere else.
@@ -10,7 +10,7 @@ import type { CatalogEntry, CatalogSource, CategorySummary, ResolvedLine } from 
    `server-only` matters here: importing this from a Client Component would pull
    the whole catalog and the Postgres driver into the browser bundle. */
 
-export type { CatalogEntry, CategorySummary, ResolvedLine } from "./types";
+export type { CatalogEntry, CategorySummary, ProductDetail, ResolvedLine } from "./types";
 
 /* Cache tags. Every admin mutation must revalidate the matching tag.
    Определения живут в `./tags` — модуле без Next и без каталога, чтобы админка
@@ -54,6 +54,15 @@ export const listCategoryItems = unstable_cache(
 export const getItem = unstable_cache(
   (handle: string, locale: string): Promise<CatalogEntry | null> => source.getItem(handle, locale),
   ["catalog:item"],
+  { tags: [CATALOG_TAG], revalidate: CACHE_TTL_SECONDS },
+);
+
+/* Редакторская часть карточки. Отдельный кэш, потому что зовёт её одна
+   страница: класть описания в общую запись категории значило бы раздувать кэш
+   каталога ради данных, которые он никогда не отдаёт. */
+export const getProductDetail = unstable_cache(
+  (handle: string, locale: string): Promise<ProductDetail | null> => source.getProductDetail(handle, locale),
+  ["catalog:detail"],
   { tags: [CATALOG_TAG], revalidate: CACHE_TTL_SECONDS },
 );
 

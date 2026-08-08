@@ -1,29 +1,21 @@
 import "server-only";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db, schema } from "@vita/db/client";
+import { INBOX_SLUG, checksFor, publishable, type Checks } from "@vita/core/readiness";
 
-/* Готовность товара к продаже.
+/* Список товаров админки и их готовность к продаже.
 
-   Главная работа в этой админке — довести 92 приехавших из X2pos черновика до
+   Главная работа в этой админке — довести приехавшие из X2pos черновики до
    состояния, в котором их можно показать покупателю. Пока это была свалка:
    список карточек, по которому нельзя понять, что именно осталось сделать.
+   Здесь то же самое становится очередью с понятным концом.
 
-   Здесь то же самое становится очередью с понятным концом. Пять требований,
-   каждое либо закрыто, либо нет:
+   Сами ПРАВИЛА готовности живут в `@vita/core/readiness` — их спрашивает ещё и
+   скрипт наполнения каталога, решая, какие черновики имеет право включить.
+   Здесь остался только запрос в базу. */
 
-     имя      — в X2pos 36 товаров называются «Унитаз», такое имя витрине не
-                годится, поэтому осмысленным считается только то, что отличается
-                от артикула
-     раздел   — товар лежит не в служебной категории `x2pos-inbox`
-     фото     — есть хотя бы одна карточка media
-     цена     — есть действующая розничная цена; без неё витрина рисует
-                «Цена по запросу» и не даёт положить в корзину
-     остаток  — на складе что-то есть
-
-   Опубликовать можно, когда закрыты первые четыре: товар под заказ с нулевым
-   остатком продавать законно, а вот без имени или без цены — нет. */
-
-export const INBOX_SLUG = "x2pos-inbox";
+export { INBOX_SLUG, checksFor, publishable };
+export type { Checks };
 
 export interface ProductRow {
   productId: string;
@@ -40,32 +32,6 @@ export interface ProductRow {
   photos: number;
   image: string | null;
   fromX2pos: boolean;
-}
-
-export interface Checks {
-  name: boolean;
-  category: boolean;
-  photo: boolean;
-  price: boolean;
-  stock: boolean;
-}
-
-export function checksFor(p: ProductRow): Checks {
-  const article = (p.sku ?? "").trim().toLowerCase();
-  const name = p.name.trim().toLowerCase();
-  return {
-    /* Имя, совпадающее с артикулом, — это заглушка, которую поставил синк. */
-    name: name.length > 0 && name !== article && !name.startsWith("x2pos "),
-    category: p.categorySlug !== INBOX_SLUG,
-    photo: p.photos > 0,
-    price: p.retailKzt !== null,
-    stock: (p.qty ?? 0) > 0,
-  };
-}
-
-/** Можно ли публиковать: остаток не обязателен, остальное обязательно. */
-export function publishable(c: Checks): boolean {
-  return c.name && c.category && c.photo && c.price;
 }
 
 export interface ListOpts {

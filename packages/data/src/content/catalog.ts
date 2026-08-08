@@ -202,6 +202,26 @@ export const categoryFilters: Record<string, CategoryFilterConfig> = {
     finishes: ["wood"],
     price: PRICE_BUCKETS,
   },
+  /* Товаров этих разделов в мок-каталоге нет — они приходят только из базы.
+     Но конфиг обязан существовать: `mock.source.getFilterConfig` возвращает
+     undefined для незнакомого слага, и страница уходит в notFound(). На
+     демо-стенде (CATALOG_SOURCE=mock, см. CLAUDE.md) плитка с главной вела бы
+     тогда на 404. С пустым конфигом раздел честно показывает «ничего не
+     найдено», а не притворяется сломанным. */
+  bidets: {
+    collections: ALL_COLLECTIONS,
+    outlet: [],
+    mount: [],
+    finishes: [],
+    price: PRICE_BUCKETS,
+  },
+  "spare-parts": {
+    collections: ALL_COLLECTIONS,
+    outlet: [],
+    mount: [],
+    finishes: [],
+    price: PRICE_BUCKETS,
+  },
 };
 
 export function getCategoryItems(category: string): CatalogItem[] {

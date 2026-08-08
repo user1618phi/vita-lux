@@ -19,8 +19,13 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..", "packages", "i1
 const KK_GLYPHS = "әөұүқңғһі";
 
 /** Values that are legitimately identical across locales — brand and channel
-    names, latin model names, shared abbreviations. Not flagged as untranslated. */
-const SHARED_OK = /^[\s\d.,·%×+—–-]*$|Vita Lux|Kaspi|WhatsApp|Halyk|Visa|Mastercard|FEEL THE QUALITY|^(Aura|Standart|Bronze|Хит)$/i;
+    names, latin model names, shared abbreviations. Not flagged as untranslated.
+
+    Полипропилен и дюропласт — заимствования, которые в казахском пишутся так
+    же, как в русском; Tornado — фирменное название системы смыва и остаётся
+    латиницей. Держать их в предупреждениях значит приучать читать список
+    предупреждений по диагонали, а он нужен для настоящих пропущенных переводов. */
+const SHARED_OK = /^[\s\d.,·%×+—–-]*$|Vita Lux|Kaspi|WhatsApp|Halyk|Visa|Mastercard|FEEL THE QUALITY|^(Aura|Standart|Bronze|Хит|Tornado|Полипропилен|Дюропласт|Биде)$/i;
 
 const errors = [];
 const warnings = [];

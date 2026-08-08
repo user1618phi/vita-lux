@@ -23,6 +23,7 @@ export function FavoritesView() {
   const tStock = useTranslations("Stock");
   const tPrice = useTranslations("Price");
   const tProduct = useTranslations("Product");
+  const tPg = useTranslations("ProductGeneric");
   // Resolved server-side by the cart context — the browser never joins against
   // the catalog itself.
   const { favoriteItems: items, hydrated } = useCart();
@@ -33,6 +34,8 @@ export function FavoritesView() {
     months: tPrice("months"),
     favoriteAdd: tProduct("favoriteAdd"),
     favoriteRemove: tProduct("favoriteRemove"),
+    priceOnRequest: tProduct("priceOnRequest"),
+    photoPending: tPg("photoPending"),
   };
 
   if (!hydrated) return <div style={{ minHeight: "50vh" }} />;
@@ -68,10 +71,12 @@ export function FavoritesView() {
                 name={it.name}
                 href={`/products/${it.handle}`}
                 handle={it.handle}
+                sku={it.sku}
                 image={it.image}
                 price={it.price}
                 wholesalePrice={it.wholesalePrice}
                 oldPrice={it.oldPrice}
+                priceOnRequest={it.priceOnRequest}
                 status={it.stock}
                 months={it.installmentMonths}
                 productLabel={labelFor(it.badge, pct, tCat("labelHit"), tCat("labelNew"))}

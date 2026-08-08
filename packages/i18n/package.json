@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./load": "./src/load.ts",
+    "./locales": "./src/locales.ts",
     "./messages/*": "./messages/*",
     "./paths": "./src/paths.ts"
   },

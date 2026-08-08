@@ -19,6 +19,8 @@ export interface AddToCartButtonProps {
   size?: "md" | "lg";
   iconSize?: number;
   fullWidth?: boolean;
+  /** Товар без цены («по запросу») или снятый с продажи — класть в корзину нельзя. */
+  disabled?: boolean;
   style?: CSSProperties;
 }
 
@@ -30,6 +32,7 @@ export function AddToCartButton({
   size = "lg",
   iconSize = 24,
   fullWidth = true,
+  disabled = false,
   style,
 }: AddToCartButtonProps) {
   const { add } = useCart();
@@ -41,6 +44,10 @@ export function AddToCartButton({
   }, []);
 
   const onClick = () => {
+    /* Атрибут disabled у кнопки — не единственный рубеж: обработчик вызывают и
+       программно, а положить в корзину товар без цены значит собрать заказ,
+       который чекаут потом отклонит целиком. */
+    if (disabled) return;
     if (handle) {
       add(handle, qty);
       track("add_to_cart", { sku: handle, quantity: qty });
@@ -55,6 +62,7 @@ export function AddToCartButton({
       variant="primary"
       size={size}
       fullWidth={fullWidth}
+      disabled={disabled}
       onClick={onClick}
       iconLeft={<Icon name={added ? "check" : "shopping-bag"} size={iconSize} />}
       style={style}

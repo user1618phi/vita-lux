@@ -352,17 +352,44 @@ export async function saveProductAction(
     variantId = row.id;
   }
 
-  await db()
-    .update(price)
-    .set({ validTo: new Date() })
-    .where(and(eq(price.variantId, variantId), sql`${price.validTo} is null`));
-  await db().insert(price).values({
-    variantId,
-    retailKzt: retail && retail.success ? retail.data : null,
-    oldKzt: oldPrice && oldPrice.success ? oldPrice.data : null,
-    mode: "manual",
-    createdBy: admin.id,
-  });
+  /* Новую строку цены пишем ТОЛЬКО если цена действительно изменилась.
+
+     Раньше это происходило при каждом сохранении товара — даже когда правили
+     одно название. Последствие тихое и необратимое: строка `mode: "manual"`
+     навсегда отключает товар от цен X2pos (синк такую строку не трогает, см.
+     CLAUDE.md), а непустой `createdBy` заставляет `seed.ts` считать товар
+     правленным руками. То есть человек, зашедший поправить опечатку в описании,
+     отвязывал товар от склада и узнавал об этом через недели — когда цена на
+     сайте переставала обновляться.
+
+     Ручная цена остаётся ручной: если строка уже `manual` и число не менялось,
+     мы просто ничего не делаем, и она продолжает действовать. */
+  const nextRetail = retail && retail.success ? retail.data : null;
+  const nextOld = oldPrice && oldPrice.success ? oldPrice.data : null;
+
+  const [currentPrice] = await db()
+    .select({ retailKzt: price.retailKzt, oldKzt: price.oldKzt })
+    .from(price)
+    .where(and(eq(price.variantId, variantId), sql`${price.validTo} is null`))
+    .orderBy(desc(price.validFrom))
+    .limit(1);
+
+  const priceChanged =
+    !currentPrice || currentPrice.retailKzt !== nextRetail || currentPrice.oldKzt !== nextOld;
+
+  if (priceChanged) {
+    await db()
+      .update(price)
+      .set({ validTo: new Date() })
+      .where(and(eq(price.variantId, variantId), sql`${price.validTo} is null`));
+    await db().insert(price).values({
+      variantId,
+      retailKzt: nextRetail,
+      oldKzt: nextOld,
+      mode: "manual",
+      createdBy: admin.id,
+    });
+  }
 
   await db()
     .insert(inventory)

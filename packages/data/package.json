@@ -6,6 +6,7 @@
   "exports": {
     "./content/catalog": "./src/content/catalog.ts",
     "./content/home": "./src/content/home.ts",
+    "./content/nav": "./src/content/nav.ts",
     "./content/products": "./src/content/products.ts",
     "./repo": "./src/repo/index.ts",
     "./repo/db.source": "./src/repo/db.source.ts",

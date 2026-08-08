@@ -15,7 +15,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:studio": "pnpm --filter @vita/db db:studio",
     "db:seed": "tsx scripts/seed.ts",
-    "db:parity": "tsx scripts/parity.ts",
+    "db:backfill": "tsx scripts/backfill-catalog.ts",
     "db:admin": "tsx scripts/create-admin.ts",
     "db:media": "tsx scripts/mirror-media.ts",
     "x2pos:sync": "tsx scripts/x2pos-sync.ts",

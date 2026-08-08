@@ -34,3 +34,17 @@ export function installmentPerMonth(total: number, months: number): number {
   if (!months) return 0;
   return Math.ceil(total / months / 10) * 10;
 }
+
+/** 700, 380, 670 -> "700 × 380 × 670". Null, если известны не все три.
+
+    Неполную тройку намеренно не собираем: подпись строки характеристик
+    обещает «Ш × Г × В», и «700 × 670» под ней — не сокращение, а неверное
+    утверждение о товаре. Частичные размеры выводятся отдельными строками. */
+export function formatDimensions(
+  width?: number | null,
+  depth?: number | null,
+  height?: number | null,
+): string | null {
+  if (!width || !depth || !height) return null;
+  return [width, depth, height].map((n) => groupDigits(n)).join(" × ");
+}

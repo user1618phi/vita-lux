@@ -3,11 +3,14 @@ import { Link } from "@/i18n/navigation";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Logo } from "@/components/ui/Logo";
 import { MAP_URL } from "@vita/data/content/home";
+import { CATALOG_SLUGS } from "@vita/data/content/nav";
 
 /* SiteFooter — graphite footer matching the macket: trust row, four columns
    (about / catalog / buyers / contacts), payment bar. Monobrand copy. */
 
-const NAV = ["faucets", "sinks", "toilets", "bath", "furniture"] as const;
+/* В подвале — ВСЕ разделы, включая запчасти: здесь нет борьбы за место, а для
+   раздела, которого нет в шапке, подвал остаётся единственной ссылкой на сайте. */
+const NAV = CATALOG_SLUGS;
 const TRUST_ICONS: IconName[] = ["truck", "shield-check", "credit-card", "home"];
 const HAIRLINE = "0.5px solid rgba(237, 241, 240, 0.14)";
 
