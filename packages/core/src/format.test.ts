@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { formatTenge, formatTengePlain, groupDigits } from "./format.ts";
+import { formatDimensions, formatTenge, formatTengePlain, groupDigits } from "./format.ts";
 
 /* Run with: pnpm test
 
@@ -42,5 +42,25 @@ describe("formatTengePlain", () => {
 describe("groupDigits", () => {
   it("rounds to whole tenge — не даём копейкам дойти до цены", () => {
     assert.equal(groupDigits(7879.6), `7${NNBSP}880`);
+  });
+});
+
+describe("formatDimensions", () => {
+  it("собирает тройку в «Ш × Г × В»", () => {
+    assert.equal(formatDimensions(700, 380, 670), "700 × 380 × 670");
+  });
+
+  it("молчит, если известны не все три", () => {
+    /* Подпись строки характеристик обещает «Ш × Г × В». Показать под ней две
+       цифры из трёх — не сокращение, а неверное утверждение о габаритах
+       товара, который человек собирается втиснуть в санузел. */
+    assert.equal(formatDimensions(700, 380, null), null);
+    assert.equal(formatDimensions(700, undefined, 670), null);
+    assert.equal(formatDimensions(null, null, null), null);
+    assert.equal(formatDimensions(undefined, undefined, undefined), null);
+  });
+
+  it("считает ноль отсутствующим размером", () => {
+    assert.equal(formatDimensions(700, 0, 670), null);
   });
 });

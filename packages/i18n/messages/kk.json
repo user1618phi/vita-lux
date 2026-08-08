@@ -3,8 +3,10 @@
     "faucets": "Араластырғыштар",
     "sinks": "Қолжуғыштар",
     "toilets": "Унитаздар",
+    "bidets": "Биде",
     "bath": "Ванналар мен душ",
     "furniture": "Жиһаз",
+    "spare-parts": "Қосалқы бөлшектер",
     "wholesale": "Көтерме"
   },
   "Header": {
@@ -72,6 +74,16 @@
       "title": "Ванна жиһазы",
       "breadcrumb": "Жиһаз",
       "description": "Ылғалға төзімді қолжуғышы бар тумбалар мен айна-шкафтар. Ванна үшін ойластырылған сақтау."
+    },
+    "bidets": {
+      "title": "Биде",
+      "breadcrumb": "Биде",
+      "description": "Меншікті өндірістің аспалы және еденге орнатылатын биделері. Vita Lux унитаздарындағыдай керамика және сондай кепілдік."
+    },
+    "spare-parts": {
+      "title": "Қосалқы бөлшектер",
+      "breadcrumb": "Қосалқы бөлшектер",
+      "description": "Vita Lux сантехникасына арналған ағызу бачоктары, отырғыштар мен арматура. Әр позицияның өз артикулы бар — бұйымдағы нөмір бойынша таңдаңыз."
     }
   },
   "Catalog": {
@@ -134,12 +146,25 @@
       "wall": "Аспалы",
       "floor": "Еденге орнатылатын"
     },
+    "flush": {
+      "shower": "Душ тәрізді",
+      "rimless": "Жиексіз",
+      "tornado": "Tornado"
+    },
+    "seat": {
+      "pp": "Полипропилен",
+      "duroplast": "Дюропласт"
+    },
     "finishes": {
       "white-gloss": "Ақ жылтыр",
       "white-matte": "Ақ мат",
       "graphite-matte": "Графит мат",
       "anthracite-matte": "Антрацит мат",
       "black-matte": "Қара мат",
+      "black-gloss": "Қара жылтыр",
+      "grey-gloss": "Сұр жылтыр",
+      "gold": "Алтын",
+      "marble-white": "Ақ мәрмәр",
       "bronze": "Қола",
       "chrome": "Хром",
       "wood": "Ағаш"
@@ -524,13 +549,22 @@
   },
   "ProductGeneric": {
     "collectionEyebrow": "{name} коллекциясы",
+    "photoPending": "Фото жақында пайда болады",
+    "descriptionHeading": "Сипаттама",
     "specsHeading": "Сипаттамалар",
+    "specDimensions": "Габариттері (Е × Т × Б)",
+    "specWidth": "Ені",
+    "specDepth": "Тереңдігі",
+    "specHeight": "Биіктігі",
+    "unitMm": "мм",
     "specCollection": "Коллекция",
     "specFinish": "Жабыны",
     "specMaterial": "Материал",
     "specCategory": "Санат",
     "specOutlet": "Шығару түрі",
     "specMount": "Орнату түрі",
+    "specFlush": "Шаю түрі",
+    "specSeat": "Отырғыш",
     "specSku": "Артикул",
     "warranty": "Кепілдік",
     "warrantyValue": "5 жыл",
@@ -566,7 +600,10 @@
   },
   "Meta": {
     "title": "Vita Lux — меншікті өндірістің сантехникасы",
-    "description": "Vita Lux — сантехника мен ванна жиһазының қазақстандық өндірушісі. Бүкіл Қазақстан бойынша жеткізу."
+    "description": "Vita Lux — сантехника мен ванна жиһазының қазақстандық өндірушісі. Бүкіл Қазақстан бойынша жеткізу.",
+    "productTitle": "{name} — Қазақстанда сатып алу",
+    "productDescription": "{name}. Vita Lux меншікті өндірісінің сантехникасы. Бүкіл Қазақстан бойынша жеткізу.",
+    "categoryTitle": "{title} — Қазақстанда сатып алу | Vita Lux"
   },
   "NotFound": {
     "title": "Бет табылмады",

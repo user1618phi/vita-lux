@@ -22,9 +22,22 @@ export interface MobileStickyBarProps {
   waPhone: string;
   waMessage: string;
   waAria: string;
+  /** Товар без розничной цены — полоса показывает подпись и глушит корзину. */
+  priceOnRequest?: boolean;
+  onRequestLabel?: string;
 }
 
-export function MobileStickyBar({ price, addLabel, addedLabel, handle, waPhone, waMessage, waAria }: MobileStickyBarProps) {
+export function MobileStickyBar({
+  price,
+  addLabel,
+  addedLabel,
+  handle,
+  waPhone,
+  waMessage,
+  waAria,
+  priceOnRequest,
+  onRequestLabel,
+}: MobileStickyBarProps) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -69,9 +82,24 @@ export function MobileStickyBar({ price, addLabel, addedLabel, handle, waPhone, 
       }}
     >
       <div style={{ flex: "none" }}>
-        <PriceTag price={price} size="md" showBenefit={false} />
+        <PriceTag
+          price={price}
+          size="md"
+          showBenefit={false}
+          priceOnRequest={priceOnRequest}
+          onRequestLabel={onRequestLabel}
+        />
       </div>
-      <AddToCartButton addLabel={addLabel} addedLabel={addedLabel} handle={handle} size="lg" iconSize={20} fullWidth style={{ flex: 1 }} />
+      <AddToCartButton
+        addLabel={addLabel}
+        addedLabel={addedLabel}
+        handle={handle}
+        size="lg"
+        iconSize={20}
+        fullWidth
+        disabled={priceOnRequest}
+        style={{ flex: 1 }}
+      />
       <WhatsAppAction iconOnly phone={waPhone} message={waMessage} ariaLabel={waAria} />
     </div>
   );

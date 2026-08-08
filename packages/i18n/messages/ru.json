@@ -3,8 +3,10 @@
     "faucets": "Смесители",
     "sinks": "Раковины",
     "toilets": "Унитазы",
+    "bidets": "Биде",
     "bath": "Ванны и душ",
     "furniture": "Мебель",
+    "spare-parts": "Запчасти",
     "wholesale": "Оптом"
   },
   "Header": {
@@ -72,6 +74,16 @@
       "title": "Мебель для ванной",
       "breadcrumb": "Мебель для ванной",
       "description": "Влагостойкие тумбы с раковиной и зеркала-шкафы. Продуманное хранение для вашей ванной."
+    },
+    "bidets": {
+      "title": "Биде",
+      "breadcrumb": "Биде",
+      "description": "Подвесные и напольные биде собственного производства. Та же керамика и та же гарантия, что и у унитазов Vita Lux."
+    },
+    "spare-parts": {
+      "title": "Запчасти и комплектующие",
+      "breadcrumb": "Запчасти",
+      "description": "Сливные бачки, сиденья и арматура к сантехнике Vita Lux. Свой артикул у каждой позиции — подбирайте по номеру с изделия."
     }
   },
   "Catalog": {
@@ -134,12 +146,25 @@
       "wall": "Подвесной",
       "floor": "Напольный"
     },
+    "flush": {
+      "shower": "Душевой",
+      "rimless": "Безободковый",
+      "tornado": "Tornado"
+    },
+    "seat": {
+      "pp": "Полипропилен",
+      "duroplast": "Дюропласт"
+    },
     "finishes": {
       "white-gloss": "Белый глянец",
       "white-matte": "Белый мат",
       "graphite-matte": "Графит матовый",
       "anthracite-matte": "Антрацит матовый",
       "black-matte": "Чёрный матовый",
+      "black-gloss": "Чёрный глянец",
+      "grey-gloss": "Серый глянец",
+      "gold": "Золото",
+      "marble-white": "Белый мрамор",
       "bronze": "Бронза",
       "chrome": "Хром",
       "wood": "Дерево"
@@ -524,13 +549,22 @@
   },
   "ProductGeneric": {
     "collectionEyebrow": "Коллекция {name}",
+    "photoPending": "Фото скоро появится",
+    "descriptionHeading": "Описание",
     "specsHeading": "Характеристики",
+    "specDimensions": "Габариты (Ш × Г × В)",
+    "specWidth": "Ширина",
+    "specDepth": "Глубина",
+    "specHeight": "Высота",
+    "unitMm": "мм",
     "specCollection": "Коллекция",
     "specFinish": "Отделка",
     "specMaterial": "Материал",
     "specCategory": "Категория",
     "specOutlet": "Тип выпуска",
     "specMount": "Тип монтажа",
+    "specFlush": "Тип смыва",
+    "specSeat": "Сиденье",
     "specSku": "Артикул",
     "warranty": "Гарантия",
     "warrantyValue": "5 лет",
@@ -566,7 +600,10 @@
   },
   "Meta": {
     "title": "Vita Lux — сантехника собственного производства",
-    "description": "Vita Lux — казахстанский производитель сантехники и мебели для ванной. Доставка по всему Казахстану."
+    "description": "Vita Lux — казахстанский производитель сантехники и мебели для ванной. Доставка по всему Казахстану.",
+    "productTitle": "{name} — купить в Казахстане",
+    "productDescription": "{name}. Сантехника собственного производства Vita Lux. Доставка по всему Казахстану.",
+    "categoryTitle": "{title} — купить в Казахстане | Vita Lux"
   },
   "NotFound": {
     "title": "Страница не найдена",

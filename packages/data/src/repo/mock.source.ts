@@ -52,6 +52,14 @@ export const mockSource: CatalogSource = {
     return toEntry(item, names);
   },
 
+  /* В мок-каталоге редакторских текстов нет вовсе: описания, SEO и габариты
+     живут только в базе. Возвращать выдуманную заглушку нельзя — на демо-стенде
+     (CATALOG_SOURCE=mock) она выглядела бы как настоящее описание товара.
+     Страница просто не рисует секцию описания, и это честно. */
+  async getProductDetail() {
+    return null;
+  },
+
   async listHandles() {
     return catalogItems.map((it) => it.handle);
   },

@@ -1,11 +1,13 @@
-/* Not marked `server-only`: scripts/parity.ts compares this against the mock
-   source from the command line. The guard sits on @/lib/repo, the module that
-   pages import. */
+/* Not marked `server-only`: модуль должен оставаться доступным Node-скриптам.
+   Guard сидит на `./index.ts` — том модуле, который импортируют страницы, и
+   именно он не пустит источник данных в браузерный бандл. */
 import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db, schema } from "@vita/db/client";
+import { DEFAULT_LOCALE } from "@vita/i18n/locales";
 import { facetPolicy, type CatalogItem, type CategoryFilterConfig, type OutletType, type MountType, type PriceBucket } from "@vita/core/catalog";
 import type { StockState } from "@vita/core/stock";
-import type { CatalogEntry, CatalogSource, CategorySummary, ResolvedLine } from "./types";
+import type { CatalogEntry, CatalogSource, CategorySummary, ProductDetail, ResolvedLine } from "./types";
 
 /* Postgres-backed catalog source.
 
@@ -110,6 +112,24 @@ function toEntry(row: Row, gallery: string[]): CatalogEntry {
   } satisfies CatalogEntry & CatalogItem;
 }
 
+/* Запасная строка перевода.
+
+   Джойн переводов идёт по конкретной локали, поэтому товар, у которого есть
+   русская строка и нет казахской, приезжал с `name = null`, а `toEntry`
+   подставлял вместо названия хендл. На /kk это выглядело так: в <h1> и в
+   хлебных крошках стоял `vl-6102-gl`, он же уезжал в JSON-LD, в снапшот
+   корзины и в подставленный текст WhatsApp.
+
+   Фолбэк живёт здесь, а не в обёртке репозитория, по двум причинам. Он должен
+   покрывать не только карточку товара, но и сетку каталога с главной — а они
+   идут через тот же baseQuery, но через другие обёртки кэша. И он не добавляет
+   ключей `unstable_cache`: меняется значение под уже существующим ключом
+   локали, а не количество записей.
+
+   Фолбэк только для названия. Описание не откатывается: русский текст под
+   казахским заголовком хуже, чем его отсутствие. */
+const i18nFallback = alias(productI18n, "product_i18n_fallback");
+
 /** One product row joined with its default variant, current price, stock and cover. */
 function baseQuery(locale: string) {
   const current = currentPrice();
@@ -125,7 +145,7 @@ function baseQuery(locale: string) {
       bodyMaterial: product.bodyMaterial,
       installmentMonths: product.installmentMonths,
       sortWeight: product.sortWeight,
-      name: productI18n.name,
+      name: sql<string | null>`coalesce(${productI18n.name}, ${i18nFallback.name})`,
       sku: variant.sku,
       finish: variant.finish,
       retailKzt: current.retailKzt,
@@ -140,6 +160,7 @@ function baseQuery(locale: string) {
     .innerJoin(brand, eq(brand.id, product.brandId))
     .leftJoin(collection, eq(collection.id, product.collectionId))
     .leftJoin(productI18n, and(eq(productI18n.productId, product.id), eq(productI18n.locale, locale)))
+    .leftJoin(i18nFallback, and(eq(i18nFallback.productId, product.id), eq(i18nFallback.locale, DEFAULT_LOCALE)))
     .leftJoin(variant, and(eq(variant.productId, product.id), eq(variant.isDefault, true)))
     .leftJoin(current, eq(current.variantId, variant.id))
     .leftJoin(inventory, eq(inventory.variantId, variant.id))
@@ -192,6 +213,49 @@ export const dbSource: CatalogSource = {
     if (!rows.length) return null;
     const [entry] = await decorate(rows as (Row & { productId: string })[]);
     return entry ?? null;
+  },
+
+  /* Отдельный запрос, а не поля в baseQuery: эти данные читает одна страница из
+     всего сайта, а baseQuery обслуживает ещё сетку каталога, главную и корзину.
+     Ни галереи, ни цены здесь не нужны — их страница уже получила через getItem.
+
+     Перевода тут не откатываем: пустое описание — это карточка без секции, а
+     русский текст под казахским заголовком читается как недоделка. */
+  async getProductDetail(handle, locale): Promise<ProductDetail | null> {
+    const rows = await db()
+      .select({
+        handle: product.handle,
+        subtitle: productI18n.subtitle,
+        descriptionMd: productI18n.descriptionMd,
+        seoTitle: productI18n.seoTitle,
+        seoDescription: productI18n.seoDescription,
+        widthMm: product.widthMm,
+        depthMm: product.depthMm,
+        heightMm: product.heightMm,
+        flushType: product.flushType,
+        seatMaterial: product.seatMaterial,
+      })
+      .from(product)
+      .leftJoin(productI18n, and(eq(productI18n.productId, product.id), eq(productI18n.locale, locale)))
+      .where(and(eq(product.handle, handle), eq(product.status, "active")))
+      .limit(1);
+
+    const row = rows[0];
+    if (!row) return null;
+    // NULL из базы превращаем в undefined — как в toEntry, чтобы `??` и `?.`
+    // вели себя одинаково во всех потребителях модели.
+    return {
+      handle: row.handle,
+      subtitle: row.subtitle ?? undefined,
+      descriptionMd: row.descriptionMd ?? undefined,
+      seoTitle: row.seoTitle ?? undefined,
+      seoDescription: row.seoDescription ?? undefined,
+      widthMm: row.widthMm ?? undefined,
+      depthMm: row.depthMm ?? undefined,
+      heightMm: row.heightMm ?? undefined,
+      flushType: row.flushType ?? undefined,
+      seatMaterial: row.seatMaterial ?? undefined,
+    };
   },
 
   async listHandles() {

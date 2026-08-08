@@ -23,10 +23,14 @@ export interface ProductCardProps {
   name: string;
   href: string;
   handle: string;
+  /** Настоящий артикул. Без него снапшот корзины подделывает его из хендла. */
+  sku?: string;
   image?: string;
   price: number;
   oldPrice?: number;
   wholesalePrice?: number;
+  /** Цена по запросу: ценник печатает подпись, кнопка гаснет. */
+  priceOnRequest?: boolean;
   status?: StockState;
   months?: number;
   productLabel?: { kind: "hit" | "sale" | "new"; text: string };
@@ -37,6 +41,12 @@ export interface ProductCardProps {
     months: string;
     favoriteAdd: string;
     favoriteRemove: string;
+    /* Обязателен намеренно: пропуск делает вызов ошибкой типов, а не карточкой
+       с «0 ₸» — товары без цены есть в каталоге всегда. */
+    priceOnRequest: string;
+    /* Тоже обязателен: товар без фотографии в каталоге — нормальное состояние,
+       а не исключение, и молчаливая серая плитка выглядит поломкой. */
+    photoPending: string;
     benefit?: string;
     /* Уже подставленная строка «оптом от N ₸». Готовой её собирает страница —
        компоненты не форматируют деньги и не знают про локаль. */
@@ -49,10 +59,12 @@ export function ProductCard({
   name,
   href,
   handle,
+  sku,
   image,
   price,
   oldPrice,
   wholesalePrice,
+  priceOnRequest,
   status = "in",
   months = 12,
   productLabel,
@@ -65,20 +77,30 @@ export function ProductCard({
   const [quickOpen, setQuickOpen] = useState(false);
   const fav = isFavorite(handle);
   const soldOut = status === "out";
+  /* Два разных состояния, а не одно. Снятый с продажи товар гасится фотографией,
+     а товар в наличии, но без цены, выглядит обычным — просто его нельзя
+     положить в корзину, пока цену не назовут. Приглушать его как распроданный
+     значило бы сказать о наличии неправду. */
+  const unbuyable = soldOut || Boolean(priceOnRequest);
 
   /* The card already has everything the cart needs to render, so hand it over
      on add — the line paints with a real name and price immediately, and the
-     server revalidation that follows only confirms it. */
+     server revalidation that follows only confirms it.
+
+     Артикул и признак «по запросу» приходят пропсами: раньше они здесь
+     выдумывались (`handle.toUpperCase()` и жёсткий `false`), и до ответа
+     `resolveHandles` корзина показывала чужой артикул и цену 0 ₸ как настоящую. */
   const snapshot: LineSnapshot = {
     handle,
-    sku: handle.toUpperCase(),
+    sku: sku ?? handle.toUpperCase(),
     name,
     price,
     oldPrice,
+    wholesalePrice,
     image,
     collection: "",
     stock: status,
-    priceOnRequest: false,
+    priceOnRequest: priceOnRequest ?? false,
     badge: productLabel?.kind,
     installmentMonths: months,
   };
@@ -127,8 +149,12 @@ export function ProductCard({
               position: "absolute",
               inset: 0,
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
+              gap: 8,
+              padding: "0 12px",
+              textAlign: "center",
               color: "var(--border-strong)",
               transform: hover ? "scale(1.03)" : "scale(1)",
               transition: "transform var(--transition)",
@@ -136,6 +162,11 @@ export function ProductCard({
             }}
           >
             <Icon name="package" size={40} strokeWidth={1} />
+            {/* Одна иконка читается как «не загрузилось». Подпись говорит, что
+                товар настоящий, а снимка пока нет. */}
+            <span className="font-sans text-[11px] leading-[1.3]" style={{ color: "var(--text-secondary)" }}>
+              {labels.photoPending}
+            </span>
           </div>
         )}
         {productLabel ? (
@@ -216,17 +247,23 @@ export function ProductCard({
             wholesaleText={labels.wholesaleFrom}
             size="md"
             benefitText={labels.benefit}
+            priceOnRequest={priceOnRequest}
+            onRequestLabel={labels.priceOnRequest}
           />
-          <InstallmentLine total={price} months={months} fromLabel={labels.installmentFrom} monthsLabel={labels.months} />
+          {/* «В рассрочку от 0 ₸ × 24 мес» под ценой, которой нет. */}
+          {!priceOnRequest ? (
+            <InstallmentLine total={price} months={months} fromLabel={labels.installmentFrom} monthsLabel={labels.months} />
+          ) : null}
         </div>
         <div style={{ marginTop: 4 }}>
           <Button
-            variant={soldOut ? "secondary" : "primary"}
+            variant={unbuyable ? "secondary" : "primary"}
             size="md"
             fullWidth
-            disabled={soldOut}
-            iconLeft={!soldOut ? <Icon name="shopping-bag" size={20} /> : null}
+            disabled={unbuyable}
+            iconLeft={!unbuyable ? <Icon name="shopping-bag" size={20} /> : null}
             onClick={() => {
+              if (unbuyable) return;
               add(handle, 1, snapshot);
               track("add_to_cart", { sku: handle, quantity: 1 });
             }}

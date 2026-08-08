@@ -7,7 +7,8 @@ import { CartProvider } from "@/context/CartContext";
 import { Analytics } from "@/components/analytics/Analytics";
 import { ThemeScript } from "@vita/ui/theme/script";
 import { DEFAULT_THEME, THEME_COLOR } from "@vita/ui/theme";
-import { isPublicSite, siteUrl } from "@vita/core/site";
+import { siteUrl } from "@vita/core/site";
+import { pageMetadata } from "@/lib/seo";
 import "@/styles/globals.css";
 
 /* Paints the mobile browser chrome to match the page. Without it iOS Safari
@@ -28,16 +29,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "Meta" });
-  const base = siteUrl();
 
   return {
-    metadataBase: new URL(base),
-    title: t("title"),
-    description: t("description"),
-    alternates: {
-      canonical: `${base}/${locale}`,
-      languages: Object.fromEntries(routing.locales.map((l) => [l, `${base}/${l}`])),
-    },
+    /* metadataBase остаётся здесь: он наследуется вниз и нужен относительным
+       путям иконок. Всё остальное собирает общий помощник — иначе canonical и
+       Open Graph расходятся между layout и страницами, что уже случалось. */
+    metadataBase: new URL(siteUrl()),
     icons: {
       icon: [
         { url: "/favicon.svg", type: "image/svg+xml" },
@@ -45,16 +42,12 @@ export async function generateMetadata({
       ],
       apple: "/apple-icon.png",
     },
-    openGraph: {
-      type: "website",
-      siteName: "Vita Lux",
-      locale: locale === "kk" ? "kk_KZ" : "ru_KZ",
+    ...pageMetadata({
+      locale,
+      path: "",
       title: t("title"),
       description: t("description"),
-      url: `${base}/${locale}`,
-    },
-    // Keep placeholder prices out of search results until a real domain is set.
-    robots: isPublicSite() ? undefined : { index: false, follow: false },
+    }),
   };
 }
 

@@ -25,6 +25,7 @@ export function CartView({
 } = {}) {
   const t = useTranslations("Cart");
   const tStock = useTranslations("Stock");
+  const tProduct = useTranslations("Product");
   const { detailed, setQty, remove, subtotal, hydrated, unavailable, dismissUnavailable } = useCart();
   const fired = useRef(false);
 
@@ -133,7 +134,15 @@ export function CartView({
                       <Icon name="plus" size={16} />
                     </button>
                   </div>
-                  <span className="vl-mono font-medium text-[16px] lg:text-[18px] text-ink">{tenge(item.price * qty)}</span>
+                  {/* Корзина, собранная до появления защиты, хранит снапшот с
+                      price = 0. Итог такую строку и так не считает
+                      (см. CartContext), но сама строка печатала «0 ₸» как
+                      настоящую цену — и оформление падало уже на чекауте. */}
+                  {item.priceOnRequest ? (
+                    <span className="font-sans text-[14px] lg:text-[15px] text-slate">{tProduct("priceOnRequest")}</span>
+                  ) : (
+                    <span className="vl-mono font-medium text-[16px] lg:text-[18px] text-ink">{tenge(item.price * qty)}</span>
+                  )}
                 </div>
               </div>
             </div>

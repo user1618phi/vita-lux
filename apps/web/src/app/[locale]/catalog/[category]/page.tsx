@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
@@ -28,6 +29,35 @@ import {
   type SortKey,
 } from "@vita/core/catalog";
 import { benefitPercent, formatTenge } from "@vita/core/format";
+import { pageMetadata } from "@/lib/seo";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; category: string }>;
+}): Promise<Metadata> {
+  const { locale, category } = await params;
+  const config = await getFilterConfig(category);
+  if (!config) return {};
+
+  const t = await getTranslations({ locale, namespace: "Meta" });
+  const tCategories = await getTranslations({ locale, namespace: "Categories" });
+
+  /* Canonical СОЗНАТЕЛЬНО не учитывает searchParams.
+
+     Next передаёт их и сюда, и подставить их в адрес — первое, что приходит в
+     голову. Делать этого нельзя: каждая комбинация фильтров и сортировок
+     (?finish=bronze&sort=price-asc и ещё десятки) — это тот же самый набор
+     товаров под другим адресом. Объявив их каноническими, мы бы отдали поиску
+     сотни почти одинаковых страниц вместо одной, и они конкурировали бы друг
+     с другом. Отфильтрованный вид канонизируется на чистый адрес раздела. */
+  return pageMetadata({
+    locale,
+    path: `/catalog/${category}`,
+    title: t("categoryTitle", { title: tCategories(`${category}.title`) }),
+    description: tCategories(`${category}.description`),
+  });
+}
 
 export const dynamicParams = true;
 
@@ -78,12 +108,15 @@ export default async function CategoryPage({
   const sortHrefs = Object.fromEntries(SORT_KEYS.map((v) => [v, sortHref(base, sp, v)])) as Record<SortKey, string>;
 
   const tProduct = await getTranslations("Product");
+  const tPg = await getTranslations("ProductGeneric");
   const baseLabels = {
     addToCart: tProduct("addToCart"),
     installmentFrom: tPrice("installmentFrom"),
     months: tPrice("months"),
     favoriteAdd: tProduct("favoriteAdd"),
     favoriteRemove: tProduct("favoriteRemove"),
+    priceOnRequest: tProduct("priceOnRequest"),
+    photoPending: tPg("photoPending"),
   };
 
   const signature = [
@@ -182,10 +215,12 @@ export default async function CategoryPage({
                         name={it.name}
                         href={`/products/${it.handle}`}
                         handle={it.handle}
+                        sku={it.sku}
                         image={it.image}
                         price={it.price}
                         wholesalePrice={it.wholesalePrice}
                         oldPrice={it.oldPrice}
+                        priceOnRequest={it.priceOnRequest}
                         status={it.stock}
                         months={it.installmentMonths}
                         productLabel={labelFor(it.badge, pct)}

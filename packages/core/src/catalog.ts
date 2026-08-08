@@ -6,6 +6,12 @@ import type { StockState } from "./stock";
 
 export type OutletType = "horizontal" | "vertical" | "oblique";
 export type MountType = "floor" | "wall";
+/* Тип смыва и материал сиденья. В фильтрах не участвуют — только в таблице
+   характеристик, поэтому живут не в `CatalogItem`, а в `ProductDetail`
+   (см. @vita/data/repo/types). Ключи обязаны совпадать со значениями pgEnum
+   `flush_type` и `seat_material` из @vita/db. */
+export type FlushType = "shower" | "rimless" | "tornado";
+export type SeatMaterial = "pp" | "duroplast";
 export type SortKey = "popular" | "price-asc" | "price-desc" | "new";
 
 export interface CatalogItem {
@@ -61,8 +67,13 @@ export const CATEGORY_FACETS: Record<string, { outlet: boolean; mount: boolean }
   toilets: { outlet: true, mount: true },
   sinks: { outlet: false, mount: false },
   faucets: { outlet: false, mount: false },
+  // У биде выпуск — понятие унитазное, а подвесное против напольного — реальный
+  // выбор покупателя: он определяется тем, что уже заложено в стене.
+  bidets: { outlet: false, mount: true },
   bath: { outlet: false, mount: false },
   furniture: { outlet: false, mount: false },
+  // Запчасти подбирают по артикулу, а не по фасетам.
+  "spare-parts": { outlet: false, mount: false },
 };
 
 export function facetPolicy(category: string): { outlet: boolean; mount: boolean } {

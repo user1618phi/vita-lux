@@ -9,6 +9,7 @@ import { useCart } from "@/context/CartContext";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useHideOnScrollDown } from "./useHideOnScrollDown";
+import { HEADER_NAV_SLUGS } from "@vita/data/content/nav";
 
 function CountBadge({ children }: { children: ReactNode }) {
   return (
@@ -39,7 +40,10 @@ function CountBadge({ children }: { children: ReactNode }) {
    logo, category nav, language, favorites + cart. Mobile: a left slide-in
    drawer. Near-white surface, sticky, hairline bottom border. Monobrand copy. */
 
-const NAV = ["faucets", "sinks", "toilets", "bath", "furniture"] as const;
+/* Список общий с подвалом и плитками — см. @vita/data/content/nav.
+   Модуль без зависимостей: этот компонент клиентский, и всё, что он импортирует,
+   уезжает в браузер. */
+const NAV = HEADER_NAV_SLUGS;
 
 const iconBtn = {
   width: 44,

@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { Icon } from "@/components/ui/Icon";
 
-/* PhotoGallery — main photo + thumbnail strip with active state. Real photos
-   (falls back to a porcelain frame if a src is missing). */
+/* PhotoGallery — main photo + thumbnail strip with active state. */
 
 export interface PhotoGalleryProps {
   images: string[];
   alt: string;
+  /** «Фото скоро появится» — локализованная строка для товара без снимков. */
+  pendingLabel?: string;
 }
 
-export function PhotoGallery({ images, alt }: PhotoGalleryProps) {
+export function PhotoGallery({ images, alt, pendingLabel }: PhotoGalleryProps) {
   const list = images.filter(Boolean);
   const [active, setActive] = useState(0);
   const current = list[active];
@@ -29,7 +31,22 @@ export function PhotoGallery({ images, alt }: PhotoGalleryProps) {
         {current ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={current} alt={alt} className="vl-photo" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : null}
+        ) : (
+          /* Пустой серый квадрат читался как поломка сайта: покупатель не знает,
+             не загрузилось ли изображение у него. Подпись превращает пробел в
+             сообщение — товар настоящий, снимка пока нет. */
+          <div
+            className="flex flex-col items-center justify-center gap-2.5"
+            style={{ position: "absolute", inset: 0, color: "var(--border-strong)" }}
+          >
+            <Icon name="package" size={48} strokeWidth={1} />
+            {pendingLabel ? (
+              <span className="font-sans text-[13px] lg:text-[14px]" style={{ color: "var(--text-secondary)" }}>
+                {pendingLabel}
+              </span>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {list.length > 1 ? (

@@ -23,8 +23,9 @@ node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))" #
 
 # 2. Схема и данные
 pnpm db:migrate
-pnpm db:seed        # заливает текущий моковый каталог
-pnpm db:parity      # сверяет источник БД с моковым — должно быть без расхождений
+pnpm db:seed        # заливает демонстрационный моковый каталог
+pnpm db:backfill    # контент настоящего каталога: названия, разделы, характеристики
+                    # (--dry-run покажет изменения, ничего не записывая)
 
 # 3. Переключить витрину
 #    CATALOG_SOURCE=db в .env.local

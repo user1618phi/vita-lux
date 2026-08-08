@@ -21,6 +21,7 @@ export async function HitsRow() {
   const tStock = await getTranslations("Stock");
   const tPrice = await getTranslations("Price");
   const tProduct = await getTranslations("Product");
+  const tPg = await getTranslations("ProductGeneric");
 
   const hits = await getHomeHits(await getLocale(), 8);
   const labelHit = tCat("labelHit");
@@ -32,6 +33,8 @@ export async function HitsRow() {
     months: tPrice("months"),
     favoriteAdd: tProduct("favoriteAdd"),
     favoriteRemove: tProduct("favoriteRemove"),
+    priceOnRequest: tProduct("priceOnRequest"),
+    photoPending: tPg("photoPending"),
   };
 
   return (
@@ -46,10 +49,12 @@ export async function HitsRow() {
                 name={it.name}
                 href={`/products/${it.handle}`}
                 handle={it.handle}
+                sku={it.sku}
                 image={it.image}
                 price={it.price}
                 wholesalePrice={it.wholesalePrice}
                 oldPrice={it.oldPrice}
+                priceOnRequest={it.priceOnRequest}
                 status={it.stock}
                 months={it.installmentMonths}
                 productLabel={labelFor(it.badge, pct, labelHit, labelNew)}

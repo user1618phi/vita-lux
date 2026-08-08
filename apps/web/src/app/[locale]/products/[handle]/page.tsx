@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 
@@ -22,13 +23,15 @@ import { MobileStickyBar } from "@/components/product/MobileStickyBar";
 import { MountingScheme } from "@/components/product/MountingScheme";
 
 import { getProduct } from "@vita/data/content/products";
-import { getItem, listCategoryItems, listHandles } from "@vita/data/repo";
+import { getItem, getProductDetail, listCategoryItems, listHandles } from "@vita/data/repo";
 import { getSettings } from "@vita/data/settings";
 import { GenericProduct } from "@/components/product/GenericProduct";
 import { ProductJsonLd } from "@/components/seo/ProductJsonLd";
 import { KaspiGlyph } from "@/components/ui/KaspiGlyph";
 import { benefitPercent, formatTenge, formatTengePlain, groupDigits, installmentPerMonth } from "@vita/core/format";
+import { stripMarkdown } from "@vita/core/markdown";
 import { SITE_DOMAIN } from "@vita/core/site";
+import { pageMetadata } from "@/lib/seo";
 
 type Spec = { label: string; value: string; unit?: string };
 type Trust = { title: string; text: string };
@@ -36,6 +39,46 @@ type Row = { label: string; value: string };
 
 const CARD = "bg-glaze border-[0.5px] border-line rounded-lg";
 const H2 = "m-0 font-display font-normal text-ink text-[20px] lg:text-[30px]";
+
+/* До появления этой функции каждая карточка товара наследовала метаданные
+   layout: один заголовок и одно описание на весь каталог, а `canonical`
+   указывал на ГЛАВНУЮ. Для поиска это означало, что сайт состоит из одной
+   страницы, сколько бы товаров в нём ни было. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; handle: string }>;
+}): Promise<Metadata> {
+  const { locale, handle } = await params;
+  const item = await getItem(handle, locale);
+  // Страница уйдёт в notFound(); метаданные 404 никого не интересуют.
+  if (!item) return {};
+
+  const detail = await getProductDetail(handle, locale);
+  const t = await getTranslations({ locale, namespace: "Meta" });
+
+  /* Заголовок: сначала то, что написал человек, иначе собираем из названия.
+     Казахский seoTitle админка сознательно не заполняет (пишет null), так что
+     на /kk всегда работает вторая ветка — шаблон обязан быть самодостаточным. */
+  const title = detail?.seoTitle || t("productTitle", { name: item.name });
+
+  /* Описание: своё → первые строки описания товара → шаблон.
+     Цену в шаблон не подставляем: она живёт за пятиминутным кэшем и протухает,
+     а для товара «по запросу» любая цифра была бы прямой ложью. */
+  const description =
+    detail?.seoDescription ||
+    stripMarkdown(detail?.descriptionMd, 160) ||
+    t("productDescription", { name: item.name });
+
+  return pageMetadata({
+    locale,
+    path: `/products/${handle}`,
+    title,
+    description,
+    image: item.image,
+    imageAlt: item.name,
+  });
+}
 
 export const dynamicParams = true;
 
@@ -63,10 +106,14 @@ export default async function ProductPage({
   // renders through the data-driven GenericProduct.
   const product = getProduct(handle);
   if (!product) {
-    return <GenericProduct item={item} />;
+    /* Запрос идёт после развилки: у aura-540 характеристики свои, из локалей,
+       и лишний поход в базу ей не нужен. */
+    const detail = await getProductDetail(handle, locale);
+    return <GenericProduct item={item} detail={detail} />;
   }
 
   const t = await getTranslations("Product");
+  const tPg = await getTranslations("ProductGeneric");
   const tStock = await getTranslations("Stock");
   const tPrice = await getTranslations("Price");
 
@@ -135,6 +182,8 @@ export default async function ProductPage({
     months: tPrice("months"),
     favoriteAdd: t("favoriteAdd"),
     favoriteRemove: t("favoriteRemove"),
+    priceOnRequest: t("priceOnRequest"),
+    photoPending: tPg("photoPending"),
   };
 
   return (
@@ -150,7 +199,11 @@ export default async function ProductPage({
           {/* Gallery */}
           <div className="-mx-4 lg:mx-0">
             <div className="px-4 lg:px-0">
-              <PhotoGallery images={item.gallery?.length ? item.gallery : item.image ? [item.image] : []} alt={productName} />
+              <PhotoGallery
+                images={item.gallery?.length ? item.gallery : item.image ? [item.image] : []}
+                alt={productName}
+                pendingLabel={tPg("photoPending")}
+              />
             </div>
           </div>
 
@@ -168,10 +221,20 @@ export default async function ProductPage({
 
             {/* Price */}
             <div className="mt-4 lg:mt-6">
-              <PriceTag price={price} oldPrice={oldPrice} size="lg" benefitText={benefitText} />
+              <PriceTag
+                price={price}
+                oldPrice={oldPrice}
+                size="lg"
+                benefitText={benefitText}
+                priceOnRequest={item.priceOnRequest}
+                onRequestLabel={t("priceOnRequest")}
+              />
             </div>
 
-            {/* Kaspi installment — conversion trigger */}
+            {/* Kaspi installment — conversion trigger.
+                Товар приходит из того же репозитория, что и остальные, поэтому
+                защита та же: рассрочка от нуля — предложение, которого нет. */}
+            {!item.priceOnRequest ? (
             <div className={`mt-4 lg:mt-6 p-[18px] lg:p-6 ${CARD}`}>
               <div className="flex items-center gap-2 flex-wrap">
                 <KaspiGlyph size={22} />
@@ -193,6 +256,7 @@ export default async function ProductPage({
                 <KaspiAction label={t("kaspiButton")} phone={phone} message={waInstallment} size="lg" fullWidth />
               </div>
             </div>
+            ) : null}
 
             {/* Stock + delivery */}
             <div className="mt-[18px] lg:mt-[22px] flex flex-col gap-2.5">
@@ -208,7 +272,14 @@ export default async function ProductPage({
             {/* Actions */}
             <div className="mt-5 lg:mt-6 flex flex-col gap-3 lg:flex-row">
               <div className="lg:flex-1">
-                <AddToCartButton addLabel={t("addToCart")} addedLabel={t("added")} handle={handle} size="lg" fullWidth />
+                <AddToCartButton
+                  addLabel={t("addToCart")}
+                  addedLabel={t("added")}
+                  handle={handle}
+                  size="lg"
+                  fullWidth
+                  disabled={item.priceOnRequest}
+                />
               </div>
               <div className="lg:flex-none">
                 <WhatsAppAction label={t("askWhatsApp")} phone={phone} message={waMessage} variant="outline" size="lg" fullWidth />
@@ -383,9 +454,11 @@ export default async function ProductPage({
                     name={r.name}
                     href={`/products/${r.handle}`}
                     handle={r.handle}
+                    sku={r.sku}
                     image={r.image}
                     price={r.price}
                     oldPrice={r.oldPrice}
+                    priceOnRequest={r.priceOnRequest}
                     status={r.stock}
                     months={r.installmentMonths}
                     labels={{
@@ -413,6 +486,8 @@ export default async function ProductPage({
         waPhone={phone}
         waMessage={waMessage}
         waAria={t("askWhatsApp")}
+        priceOnRequest={item.priceOnRequest}
+        onRequestLabel={t("priceOnRequest")}
       />
     </div>
   );
