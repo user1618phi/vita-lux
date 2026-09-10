@@ -1,5 +1,7 @@
 # Vita Lux — интернет-магазин
 
+[![CI](https://github.com/user1618phi/vita-lux/actions/workflows/ci.yml/badge.svg)](https://github.com/user1618phi/vita-lux/actions/workflows/ci.yml)
+
 Магазин сантехники собственного производства (Казахстан). Next.js 15 App
 Router, TypeScript strict, Tailwind v4, next-intl (ru/kk), PostgreSQL + Drizzle.
 
