@@ -10,3 +10,7 @@ next-env.d.ts
 !.env.example
 .DS_Store
 .vercel
+
+# Personal agent configs
+.claude/
+.agent/
